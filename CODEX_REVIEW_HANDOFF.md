@@ -2,15 +2,37 @@
 
 **Read-only audit of Milestone 2: Tap Upgrades, Economy & BigNum.** This repository is self-contained; no conversation history is needed.
 
+## Round 2 — re-review of the audit corrections (current)
+
+The round 1 audit (`review/audits/Emberbound_M2_Independent_Audit.pdf`) returned **FAIL** with findings F1–F6 (2 Medium, 4 Low). All six were corrected in one source commit.
+
+| | |
+|---|---|
+| Pull request | [zelly-cious/Emberbound#1](https://github.com/zelly-cious/Emberbound/pull/1), branch `feature/m2-tap-upgrades-bignum` → `main`; **not to be merged before re-review and Studio testing** |
+| **Corrections commit (re-review this)** | `e4b01088b953acb7f5d31b77cbf4e3f5b5e8adcf` |
+| What changed | `git diff 024cd68 e4b0108 -- src`: BigNum (F1, F2, F4, F5), TestKit and TestRunner (F3, F6), 13 new tests incl. the new `Tests/TestKitTests` suite. No gameplay, service, remote or client changes. |
+| Later commits | Documents and `review/` tooling only: `git diff e4b0108 HEAD -- src` is empty |
+| Report | `review/M2_CORRECTIONS_REPORT.md` — fixes, tradeoffs, files, tests, results, unresolved items |
+| Results (no Roblox Studio) | 61 / 61 unit tests (48 original + 13 new); 75 / 75 probes (54 original + 21 new); 24 / 24 files compile; Selene clean; F5 strict diagnostic gone under both solvers |
+| Prompt | `REREVIEW_PROMPT.md` |
+
+Re-review focus: correctness of the new `BigNum.sub` native path and its 10^23 bound; `tryNormalize` vs `normalize` error behaviour; subnormal scaling in `multiplyByPowerOfTen` / `divideByPowerOfTen`; the F5 tradeoff (writable type, runtime freeze); `TestKit.runSuites` / `TestRunner` failure accounting; and that nothing outside those files changed.
+
+---
+
+## Round 1 — original submission (historical)
+
+Everything below describes the submission audited in round 1 and is kept unchanged except for this heading and the labels in the table.
+
 | | |
 |---|---|
 | Repository | `zelly-cious/Emberbound` |
 | Branch | [`feature/m2-tap-upgrades-bignum`](https://github.com/zelly-cious/Emberbound/tree/feature/m2-tap-upgrades-bignum) |
-| Pull request | Targets `main`, not to be merged before the audit: [open / view](https://github.com/zelly-cious/Emberbound/compare/main...feature/m2-tap-upgrades-bignum) |
-| **Implementation commit (review this)** | `024cd68838d6c34633a00e7eadcb320c251186f0` |
+| Pull request | [zelly-cious/Emberbound#1](https://github.com/zelly-cious/Emberbound/pull/1) |
+| Implementation commit (audited in round 1) | `024cd68838d6c34633a00e7eadcb320c251186f0` |
 | Milestone 1 baseline | `730218a228463db5dc02e4c6b9726122d3a5e0c2` (sync-retry + `Camera.Focus` fixes) |
-| Later commits on the branch | Review documents and `review/` tooling only. Check: `git diff 024cd68 HEAD -- src` is empty. |
-| Source provenance | `Emberbound_M2_Scripts.zip` (packaged 31 Oct 2026 03:36). All 23 scripts byte-identical; manifest in `SOURCE_HASHES.txt`. |
+| Round 1 PR head | `eb5a3511d932de5c1860852c0f47dfa8911912a5` (documents only on top of `024cd68`) |
+| Source provenance | `Emberbound_M2_Scripts.zip` (packaged 31 Oct 2026 03:36). All 23 scripts byte-identical; round 1 manifest in `SOURCE_HASHES.txt`. |
 
 ## Milestone 2 requirements (full contract: `M2_REQUIREMENTS.md`)
 

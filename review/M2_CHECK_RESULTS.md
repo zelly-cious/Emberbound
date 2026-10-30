@@ -1,5 +1,7 @@
 # Milestone 2 — Static checks and automated tests actually executed
 
+> **Historical — round 1.** These are the results for the audited commit `024cd68` / PR head `eb5a351`, kept unchanged as evidence. The Codex audit later found F1–F6, which these checks missed. Results for the corrections commit `e4b0108` are in `review/M2_CORRECTIONS_REPORT.md`.
+
 Run on 31 Oct 2026 against commit `024cd68838d6c34633a00e7eadcb320c251186f0`, on Windows 11 (Git Bash). **Roblox Studio was not used.** Nothing below is a Studio, live-server, device or multi-client result.
 
 | Check | Tool | Scope | Result |

@@ -1,5 +1,7 @@
 # CODEX TASK — EMBERBOUND MILESTONE 2 INDEPENDENT AUDIT
 
+> **Historical — round 1 prompt**, kept for reference. The audit it produced is in `review/audits/`. For the current re-review of the corrections use `REREVIEW_PROMPT.md`.
+
 Act as an independent senior Roblox/Luau engineer and game-security reviewer. Claude produced the implementation. You are the reviewer, not the implementer.
 
 Review branch `feature/m2-tap-upgrades-bignum`, implementation commit `024cd68838d6c34633a00e7eadcb320c251186f0`. Read `CODEX_REVIEW_HANDOFF.md`, `AGENTS.md`, `M2_REQUIREMENTS.md`, `M2_REVIEW_GUIDE.md`, `review/M2_CHECK_RESULTS.md`, `DECISIONS.md`, and **all 23 Luau files under `src/`**, including the cross-script call and event flow. `src/` mirrors the Roblox Explorer placement; script classes are listed in `M2_REVIEW_GUIDE.md` section 1.

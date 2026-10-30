@@ -1,6 +1,6 @@
 # Milestone 2 — Review guide
 
-Everything a reviewer needs to audit Milestone 2 (Tap Upgrades, Economy & BigNum) from this repository alone. Line numbers refer to commit `024cd68838d6c34633a00e7eadcb320c251186f0`.
+Everything a reviewer needs to audit Milestone 2 (Tap Upgrades, Economy & BigNum) from this repository alone. Line numbers refer to commit `024cd68838d6c34633a00e7eadcb320c251186f0`, except in `BigNum`, `TestKit` and `TestRunner`, which changed in the audit corrections `e4b01088b953acb7f5d31b77cbf4e3f5b5e8adcf` (`review/M2_CORRECTIONS_REPORT.md`).
 
 ## 1. Explorer hierarchy
 
@@ -37,6 +37,7 @@ ServerScriptService
     ├── CombatRulesTests (ModuleScript)
     ├── ProgressionTests (ModuleScript)
     ├── RateLimiterTests (ModuleScript)
+    ├── TestKitTests (ModuleScript)          NEW in e4b0108
     └── WalletTests (ModuleScript)
 StarterPlayer
 └── StarterPlayerScripts
@@ -54,7 +55,7 @@ Package-to-repository name mapping (contents byte-identical): `ServerInit.server
 
 | File | Status | Lines | Purpose |
 |---|---|---|---|
-| `src/ReplicatedStorage/Shared/BigNum.luau` | new | 464 | Non-negative big numbers: math, compare, canonical text, display |
+| `src/ReplicatedStorage/Shared/BigNum.luau` | new (corrected in e4b0108) | 508 | Non-negative big numbers: math, compare, canonical text, display |
 | `src/ReplicatedStorage/Shared/ProgressionConfig.luau` | new | 139 | Currency list (Gold), Tap Damage upgrade curve, start-up validation |
 | `src/ReplicatedStorage/Shared/GameConfig.luau` | revised | 152 | Formulas return BigNum; new remote names, payload types, rate-limit values |
 | `src/ServerScriptService/CombatRules.luau` | new | 90 | Pure per-player combat rules (spawn, hit, defeat, reward, advance) |
@@ -65,7 +66,7 @@ Package-to-repository name mapping (contents byte-identical): `ServerInit.server
 | `src/ServerScriptService/UpgradeService.luau` | new | 222 | Purchase transaction, request-id replay guard, `UpgradeUpdate` |
 | `src/ServerScriptService/PlayerSessionService.luau` | new | 147 | Join / ClientReady / leave across all services, in a fixed order |
 | `src/ServerScriptService/ServerInit.luau` | revised | 27 | Starts CombatService, UpgradeService, PlayerSessionService |
-| `src/ServerScriptService/Tests/*` | new | 8 files | TestKit, TestRunner (Studio only) and 48 deterministic tests |
+| `src/ServerScriptService/Tests/*` | new | 9 files | TestKit, TestRunner (Studio only) and 61 deterministic tests in 7 suites (48 in round 1; TestKitTests and 6 more tests added in e4b0108) |
 | `src/StarterPlayer/StarterPlayerScripts/CombatClient.luau` | revised | 291 | Decodes BigNum strings, wires currency/upgrade updates and the panel |
 | `src/StarterPlayer/StarterPlayerScripts/CombatClient/CombatHud.luau` | revised | 424 | Uses `BigNum.format`; Gold set separately via `SetGold` |
 | `src/StarterPlayer/StarterPlayerScripts/CombatClient/UpgradePanel.luau` | new | 358 | Tap upgrade panel (placeholder UI) |
@@ -114,15 +115,15 @@ Each value has one representation, so equality and canonical strings are stable.
 | `isValid(v)` | Full invariant check; use on any value from outside the module |
 | `compare`, `eq`, `lt`, `lte`, `gt`, `gte`, `isZero`, `max`, `min` | Exponent first, then mantissa |
 | `add(a, b)` | Exact while both small and the sum < 2^53; operands more than 17 orders of magnitude apart return the larger |
-| `sub(a, b)` | **Saturating**: returns zero when b ≥ a |
+| `sub(a, b)` | **Saturating**: returns zero when b ≥ a. When a < 10^23 it is one correctly rounded double subtraction, so results below 2^53 are exact (audit F1) |
 | `trySub(a, b)` | nil when b > a (the "spend only if affordable" primitive) |
 | `mul`, `mulNumber`, `div` | `div` errors on zero |
 | `ratio(a, b)` | Plain number for display (health bar); may return `math.huge` |
 | `floor`, `log10`, `toNumber` | `toNumber` returns `math.huge` above ~1.8e308; display only |
-| `toString(v)` / `parse(text)` | Canonical text; `parse` never errors and returns nil for non-strings, empty or > 64 chars, signs, `inf`/`nan`, hex, or exponents beyond 2^53 − 1 |
+| `toString(v)` / `parse(text)` | Canonical text; `parse` never errors and returns nil for non-strings, empty or > 64 chars, signs, `inf`/`nan`, hex, or exponents beyond 2^53 − 1, including exponents that only overflow after normalization such as `"10e9007199254740991"` (audit F2) |
 | `format(v)` | `999`, `1.23K` … `999.99Dc`, then `1.23e456` |
 
-Precision is about 17 significant digits; amounts smaller than about 10^-17 of the other operand are absorbed by `add`/`sub` (e.g. `1e20 − 5 = 1e20`).
+Precision is about 17 significant digits; amounts smaller than about 10^-17 of the other operand are absorbed by `add`/`sub` (e.g. `1e20 − 5 = 1e20`). Subnormal doubles down to 5e-324 are accepted and work in every operation (audit F4).
 
 ## 5. Gold acquisition and spending
 
@@ -203,7 +204,7 @@ Mark each item confirmed-by-source, needs-Studio-test, or defect.
 - [ ] Player leave cleans every per-player table (sessions, upgrade states, combat states, wallets, rate-limit buckets).
 - [ ] BigNum values from outside the module are validated (`isValid` / `parse`) before use; `parse` cannot error or produce NaN/inf.
 - [ ] No yields inside economy transactions; no DataStore, HTTP or `InvokeClient` calls.
-- [ ] `TestRunner` runs only when `RunService:IsStudio()`; test modules expose no remotes.
+- [ ] `TestRunner` runs only when `RunService:IsStudio()`; test modules expose no remotes; a suite that fails to load, or an empty run, is reported as a failure (audit F3).
 - [ ] Client-side affordability, click interval (0.15 s) and tap-area checks are hints only; the server re-checks everything.
 
 ## 9. Roblox Studio testing checklist
@@ -212,7 +213,7 @@ Mark each item confirmed-by-source, needs-Studio-test, or defect.
 
 | # | Test | Expected |
 |---|---|---|
-| S0 | Press Play; read Output | `[Tests] ALL PASSED (48 tests)`; no red errors; no `Missing RemoteEvent` errors |
+| S0 | Press Play; read Output | `[Tests] ALL PASSED (61 tests)` with 7 suites listed; no red errors; no `Missing RemoteEvent` errors |
 | S1 | M1 regression: 10 taps at stage 1 | 10/10 → 0, one defeat, `+5 Gold`, stage 2 shows 11 HP; stage 3 shows 13 HP and pays 6 |
 | S2 | Upgrade panel at 0 Gold | Button reads `Need 5 Gold`, does nothing; panel shows Level 1, Tap Damage 1, Next 2 damage |
 | S3 | Earn 5 Gold, press Upgrade | Gold 5 → 0, Level 2, Tap Damage 2 in HUD and panel, `Upgraded!`; slime now takes 2 per tap |
@@ -240,5 +241,6 @@ Mark each item confirmed-by-source, needs-Studio-test, or defect.
 - **Debug logging:** `GameConfig.Debug.LogPlayerLifecycle = true` prints on join/leave in live servers too.
 - **Test modules ship in ServerScriptService** but only run in Studio.
 - **Stale comments:** `ProgressionConfig` and `CurrencyService` headers mention "earned tickets, premium currency" (now Gems and Crowns).
-- **Strict-mode type note:** under Luau's new type solver, `BigNum.luau:37` reports a type mismatch (`table.freeze` returns read-only fields; `BigNum` type declares read-write). Type-level only; see `review/M2_CHECK_RESULTS.md`.
+- **Strict-mode type note (resolved in e4b0108, audit F5):** `BigNum.make` now freezes in place and returns the typed reference, so strict analysis is clean under both solvers. The exported type keeps writable fields because the old solver rejects `read` fields; immutability is enforced at runtime.
+- **Precision above 2^53 (observation):** `add` still uses scientific form; about 1 in 3 sums in [2^53, 10^16) is one double (2) away from the correctly rounded value. `sub` is correctly rounded below 10^23.
 - **Out of scope:** heroes, DPS, gacha, Gems, Crowns, equipment, trading, premium purchases, PolicyService, bosses, prestige. See `DECISIONS.md`.

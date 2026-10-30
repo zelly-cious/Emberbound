@@ -204,7 +204,8 @@ for key in SOURCES do
 end
 table.sort(keys)
 for _, key in keys do
-	if string.sub(key, 1, 3) ~= "M1/" then
+	-- Baseline copies (M1/..., AUDITED/...) stay out of the tree; Shim.loadDetached loads them.
+	if services[string.split(key, "/")[1]] ~= nil then
 		local segments = string.split(key, "/")
 		local parent = ensurePath(segments, #segments - 1)
 		local scriptInstance = newInstance(SCRIPT_CLASSES[key] or "ModuleScript", segments[#segments], parent)
@@ -308,6 +309,84 @@ function Shim.loadDetached(key)
 	end
 	local detachedScript = newInstance("ModuleScript", key, newInstance("Folder", "Detached", nil))
 	return runChunk(source, key .. ".luau", detachedScript)
+end
+
+-- Adds a script with the given source to the tree after start-up (fault-injection probes).
+function Shim.addSource(path, className, source)
+	SOURCES[path] = source
+	local segments = string.split(path, "/")
+	local scriptInstance = newInstance(className, segments[#segments], ensurePath(segments, #segments - 1))
+	scriptInstance._key = path
+	return scriptInstance
+end
+
+--[[
+	Independent check of a TestRunner run, so the harness never trusts the
+	runner's own verdict alone: the last [Tests] line must be "ALL PASSED", no
+	line may report a failure, and every expected suite must report its count.
+	Returns (ok, problems).
+]]
+function Shim.checkTestRun(lines, expectedSuites)
+	local problems = {}
+	local testLines = {}
+	for _, line in lines do
+		local text = string.gsub(line, "^%[warn%] ", "")
+		if string.sub(text, 1, 7) == "[Tests]" then
+			table.insert(testLines, text)
+			if string.find(text, "FAIL", 1, true) then
+				table.insert(problems, text)
+			end
+		end
+	end
+	local last = testLines[#testLines]
+	if last == nil or not string.find(last, "^%[Tests%] ALL PASSED %(%d+ tests%)$") then
+		table.insert(problems, `final verdict was {last or "missing"}`)
+	end
+	for _, suiteName in expectedSuites do
+		local reported = false
+		for _, text in testLines do
+			if string.find(text, `[Tests] {suiteName}: `, 1, true) then
+				reported = true
+			end
+		end
+		if not reported then
+			table.insert(problems, `{suiteName} never reported (did it load?)`)
+		end
+	end
+	return #problems == 0, problems
+end
+
+-- Names of the shipped test suites: every ServerScriptService/Tests module ending in "Tests".
+function Shim.expectedSuites()
+	local names = {}
+	for key in SOURCES do
+		local name = string.match(key, "^ServerScriptService/Tests/(%w+Tests)$")
+		if name then
+			table.insert(names, name)
+		end
+	end
+	table.sort(names)
+	return names
+end
+
+-- Runs a Script and returns every line it printed or warned.
+function Shim.captureScript(path)
+	local lines = {}
+	local realPrint = print
+	local env = getfenv(1)
+	env.print = function(...)
+		local parts = {}
+		for i = 1, select("#", ...) do
+			parts[i] = tostring((select(i, ...)))
+		end
+		table.insert(lines, table.concat(parts, " "))
+	end
+	local ok, problem = pcall(Shim.runScript, path)
+	env.print = realPrint
+	if not ok then
+		table.insert(lines, `[script error] {problem}`)
+	end
+	return lines
 end
 
 function Shim.advanceClock(seconds)

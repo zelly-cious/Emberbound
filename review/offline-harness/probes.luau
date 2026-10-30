@@ -395,7 +395,300 @@ check("Bob is unaffected by Alice leaving", gold(bob) == "0" and UpgradeService.
 
 check("no remote handler raised an error", #Shim.handlerErrors == 0, table.concat(Shim.handlerErrors, " | "))
 
-print(`\n[Probes] {passed} passed, {failed} failed`)
+local originalPassed, originalFailed = passed, failed
+
+---------------------------------------------------------------------------
+-- Sections 6-11 were added with the corrections for the Milestone 2 Codex audit
+-- (findings F1-F6). Sections 1-5 above are the original 54 probes, unchanged.
+---------------------------------------------------------------------------
+local TWO_POW_53_NUMBER = 9007199254740992
+local MAX_EXPONENT = 9007199254740991
+
+---------------------------------------------------------------------------
+section("6. F1: subtraction near 2^53 and Gold conservation")
+---------------------------------------------------------------------------
+check("sub(2^53, 2^53 - 1) = 1", s(BigNum.sub(n(TWO_POW_53_NUMBER), n(TWO_POW_53_NUMBER - 1))) == "1")
+do
+	local mismatches, total = 0, 0
+	for _ = 1, 20000 do
+		local a = TWO_POW_53_NUMBER + 2 * math.floor(math.random() * 4e14) -- even doubles in [2^53, ~9.8e15)
+		local b = math.floor(math.random() * a)
+		total += 1
+		local result = BigNum.sub(n(a), n(b))
+		if not BigNum.isValid(result) or BigNum.toNumber(result) ~= a - b then
+			mismatches += 1
+		end
+	end
+	check(`{total} subtractions from [2^53, 1e16) equal the correctly rounded double (exact below 2^53)`, mismatches == 0, mismatches)
+end
+do
+	local wholeFailures, total = 0, 0
+	for _ = 1, 5000 do
+		local exponent = 16 + math.floor(math.random() * 7) -- operands up to 10^22
+		local a = BigNum.fromLog10(exponent + math.random() * 0.99)
+		local b = BigNum.fromLog10(BigNum.log10(a) - math.random() * 1e-12) -- very close to a
+		if BigNum.gt(a, b) then
+			total += 1
+			local result = BigNum.sub(a, b)
+			if result.e == 0 and result.m % 1 ~= 0 then
+				wholeFailures += 1
+			end
+		end
+	end
+	check(`{total} cancellations between large operands below 10^23 give whole numbers`, wholeFailures == 0, wholeFailures)
+end
+do
+	-- Through the real services: a 2^53 Gold balance pays 30 upgrades and must equal 2^53 minus their exact sum.
+	local carol = Shim.addPlayer("Carol")
+	Shim.advanceClock(5)
+	Shim.fireServer("ClientReady", carol)
+	CurrencyService.Grant(carol, GOLD, n(TWO_POW_53_NUMBER), "Probe")
+	drain(carol)
+	local expected = TWO_POW_53_NUMBER
+	local level = UpgradeService.GetLevel(carol, TAP.id)
+	local requestId = 0
+	for _ = 1, 3 do
+		refill()
+		for _ = 1, 10 do
+			requestId += 1
+			expected -= BigNum.toNumber(ProgressionConfig.GetUpgradeCost(TAP, level))
+			level += 1
+			buy(carol, requestId)
+		end
+	end
+	drain(carol)
+	check("30 purchases from a 2^53 balance leave exactly 2^53 minus their summed costs",
+		UpgradeService.GetLevel(carol, TAP.id) == level and gold(carol) == string.format("%.17g", expected),
+		`{gold(carol)} vs {string.format("%.17g", expected)}`)
+	Shim.removePlayer(carol)
+end
+
+---------------------------------------------------------------------------
+section("7. F2: parse never throws")
+---------------------------------------------------------------------------
+do
+	local alphabet = "0123456789.eE+-"
+	local thrown, invalid, total = 0, 0, 0
+	local function probeText(text)
+		total += 1
+		local ok, result = pcall(BigNum.parse, text)
+		if not ok then
+			thrown += 1
+			if thrown <= 3 then
+				print(`    parse raised for "{text}": {result}`)
+			end
+		elseif result ~= nil and not BigNum.isValid(result) then
+			invalid += 1
+		end
+		return if ok then result else nil
+	end
+	for _ = 1, 20000 do
+		local length = 1 + math.floor(math.random() * 64)
+		local characters = table.create(length)
+		for i = 1, length do
+			local index = 1 + math.floor(math.random() * #alphabet)
+			characters[i] = string.sub(alphabet, index, index)
+		end
+		probeText(table.concat(characters))
+	end
+	-- Structured hostile input: up to 48 mantissa digits with exponents around 2^53 - 1.
+	-- The exact verdict is checked up to 23 digits, where the mantissa 10^(digits - 1) is an exact
+	-- double; longer mantissas are read to double precision (like tonumber) or hit the 64-character limit.
+	local wrongVerdicts = 0
+	for digits = 1, 48 do
+		for offset = -60, 5 do
+			local exponent = MAX_EXPONENT + offset
+			local text = "1" .. string.rep("0", digits - 1) .. "e" .. string.format("%.0f", exponent)
+			local result = probeText(text)
+			if digits <= 23 then
+				-- Parenthesized: near 2^53, (exponent + digits) - 1 would round before subtracting.
+				local normalizedExponent = exponent + (digits - 1)
+				local shouldFit = exponent <= MAX_EXPONENT and normalizedExponent <= MAX_EXPONENT
+				if shouldFit ~= (result ~= nil) or (result and result.e ~= normalizedExponent) then
+					wrongVerdicts += 1
+				end
+			end
+		end
+	end
+	check(`{total} random and boundary strings: parse never raised an error`, thrown == 0, thrown)
+	check("every value parse returned is a valid BigNum", invalid == 0, invalid)
+	check("near exponent 2^53 - 1, parse accepts exactly the representable values", wrongVerdicts == 0, wrongVerdicts)
+end
+
+---------------------------------------------------------------------------
+section("8. F3: TestRunner fault injection (the real TestRunner script)")
+---------------------------------------------------------------------------
+do
+	local runnerSource = SOURCES["ServerScriptService/Tests/TestRunner"]
+	local kitSource = SOURCES["ServerScriptService/Tests/TestKit"]
+	local goodSuite = 'return { name = "GoodTests", tests = { { name = "passes", run = function() end } } }'
+	local function runFolder(folder, extraModules)
+		Shim.addSource(`ServerScriptService/{folder}/TestKit`, "ModuleScript", kitSource)
+		for name, source in extraModules do
+			Shim.addSource(`ServerScriptService/{folder}/{name}`, "ModuleScript", source)
+		end
+		Shim.addSource(`ServerScriptService/{folder}/TestRunner`, "Script", runnerSource)
+		return Shim.captureScript(`ServerScriptService/{folder}/TestRunner`)
+	end
+	local function says(lines, fragment)
+		for _, line in lines do
+			if string.find(line, fragment, 1, true) then
+				return true
+			end
+		end
+		return false
+	end
+
+	local broken = runFolder("FaultBroken", { GoodTests = goodSuite, BrokenTests = 'error("injected load failure")' })
+	check("a suite that errors while loading is reported and the run is not ALL PASSED",
+		says(broken, "could not load BrokenTests") and not says(broken, "ALL PASSED"))
+	check("the harness check also rejects that run", not Shim.checkTestRun(broken, { "BrokenTests", "GoodTests" }))
+
+	local notSuite = runFolder("FaultNotSuite", { GoodTests = goodSuite, NotASuiteTests = "return 42" })
+	check("a module that does not return a suite is a failure",
+		says(notSuite, "NotASuiteTests: did not return a test suite") and not says(notSuite, "ALL PASSED"))
+
+	local empty = runFolder("FaultEmpty", {})
+	check("a run with no test modules fails", says(empty, "no tests ran") and not says(empty, "ALL PASSED"))
+
+	local clean = runFolder("FaultClean", { GoodTests = goodSuite })
+	check("control: a healthy folder still reports ALL PASSED", Shim.checkTestRun(clean, { "GoodTests" }))
+end
+
+---------------------------------------------------------------------------
+section("9. F4: the smallest positive doubles in arithmetic")
+---------------------------------------------------------------------------
+do
+	local values = {
+		n(5e-324), n(1e-320), n(2.2250738585072014e-308), n(1e-300), n(1e-200), n(0.5), n(13),
+		n(TWO_POW_53_NUMBER - 1), n(TWO_POW_53_NUMBER), p("1e16"), n(1e308), p("1e400"), (p("7.25e1000")),
+	} -- the parentheses keep p's second return value (assert's message) out of the list
+	local errors, invalid, operations = 0, 0, 0
+	for _, a in values do
+		for _, b in values do
+			for _, operation in { BigNum.add, BigNum.sub, BigNum.mul, BigNum.div } do
+				operations += 1
+				local ok, result = pcall(operation, a, b)
+				if not ok then
+					errors += 1
+					if errors <= 3 then
+						print(`    {s(a)} op {s(b)} raised: {result}`)
+					end
+				elseif not BigNum.isValid(result) then
+					invalid += 1
+				end
+			end
+			local okCompare = pcall(BigNum.compare, a, b) and pcall(BigNum.ratio, a, b) and pcall(BigNum.format, a)
+			if not okCompare then
+				errors += 1
+			end
+		end
+		if not BigNum.eq(p(s(a)), a) then
+			invalid += 1
+		end
+	end
+	check(`{operations} add/sub/mul/div operations on values from 5e-324 to 7.25e1000 raise no errors`, errors == 0, errors)
+	check("every result is a valid BigNum and every value round-trips through text", invalid == 0, invalid)
+	check("5e-324 * 1e400 divided by 1e400 is 5e-324 again",
+		BigNum.eq(BigNum.div(BigNum.mul(n(5e-324), p("1e400")), p("1e400")), n(5e-324)))
+end
+
+---------------------------------------------------------------------------
+section("10. F6: approximate assertions reject NaN")
+---------------------------------------------------------------------------
+do
+	local TestKit = Shim.require("ServerScriptService/Tests/TestKit")
+	check("expectNear(0/0, 123, 0) fails", not pcall(TestKit.expectNear, 0 / 0, 123, 0))
+	check("expectNear(123, 0/0, 0) and NaN or negative tolerances fail",
+		not pcall(TestKit.expectNear, 123, 0 / 0, 0) and not pcall(TestKit.expectNear, 1, 1, 0 / 0) and not pcall(TestKit.expectNear, 1, 1, -1))
+	check("valid approximate comparisons still pass", pcall(TestKit.expectNear, 1, 1.05, 0.1) and pcall(TestKit.expectNear, 5, 5, 0))
+end
+
+---------------------------------------------------------------------------
+section("11. Ordinary values: corrected BigNum vs the audited BigNum (024cd68)")
+---------------------------------------------------------------------------
+local Audited = Shim.loadDetached("AUDITED/ReplicatedStorage/Shared/BigNum")
+if Audited == nil then
+	print("  SKIPPED: audited commit 024cd68 not available in git")
+else
+	local texts = {}
+	for _ = 1, 400 do
+		local kind = math.random(5)
+		if kind == 1 then
+			table.insert(texts, string.format("%.0f", math.floor(math.random() * TWO_POW_53_NUMBER)))
+		elseif kind == 2 then
+			table.insert(texts, string.format("%.17g", math.random() * 1e6))
+		elseif kind == 3 then
+			table.insert(texts, s(n(TWO_POW_53_NUMBER + 2 * math.floor(math.random() * 4e14))))
+		elseif kind == 4 then
+			table.insert(texts, s(BigNum.fromLog10(16 + math.random() * 14)))
+		else
+			table.insert(texts, s(BigNum.fromLog10(300 + math.random() * 5000)))
+		end
+	end
+	local same, intended, unexpected, parseDifferences = 0, 0, 0, 0
+	local function describe(ok, value)
+		if not ok then
+			return "error"
+		end
+		if type(value) == "table" then
+			return s(value)
+		end
+		return tostring(value)
+	end
+	for i, aText in texts do
+		local bText = texts[(i * 7) % #texts + 1]
+		local newA, newB = p(aText), p(bText)
+		local oldA, oldB = Audited.parse(aText), Audited.parse(bText)
+		if s(newA) ~= Audited.toString(oldA) or s(newB) ~= Audited.toString(oldB) then
+			parseDifferences += 1
+		end
+		for _, name in { "add", "sub", "mul", "div", "compare", "ratio", "floor", "log10", "format", "toString" } do
+			local okNew, newResult = pcall(BigNum[name], newA, newB)
+			local okOld, oldResult = pcall(Audited[name], oldA, oldB)
+			if describe(okNew, newResult) == describe(okOld, oldResult) then
+				same += 1
+			elseif name == "sub" and newA.e ~= 0 and newA.e <= 22 then
+				-- F1: the corrected sub returns the correctly rounded double subtraction below 10^23.
+				local difference = BigNum.toNumber(newA) - BigNum.toNumber(newB)
+				local expectedText = if difference > 0 then s(n(difference)) else "0"
+				if describe(okNew, newResult) == expectedText then
+					intended += 1
+				else
+					unexpected += 1
+				end
+			else
+				unexpected += 1
+				if unexpected <= 3 then
+					print(`    {name}({aText}, {bText}): new {describe(okNew, newResult)}, audited {describe(okOld, oldResult)}`)
+				end
+			end
+		end
+	end
+	check("parse and toString agree with the audited BigNum on every ordinary value", parseDifferences == 0, parseDifferences)
+	check(`{same + intended + unexpected} operations: every difference is the intended F1 subtraction change`, unexpected == 0, unexpected)
+	observe(`{same} results identical to the audited BigNum, {intended} subtractions now correctly rounded`)
+end
+
+do
+	-- Not an audit finding: add still uses scientific form above 2^53 (documented ~16-digit precision).
+	local off, total = 0, 0
+	for _ = 1, 20000 do
+		local a = TWO_POW_53_NUMBER + 2 * math.floor(math.random() * 4e14)
+		local b = math.floor(math.random() * 1e6)
+		total += 1
+		if BigNum.toNumber(BigNum.add(n(a), n(b))) ~= a + b then
+			off += 1
+		end
+	end
+	observe(`add with a result in [2^53, 1e16): {off} of {total} land one double (2) away from the correctly rounded sum (unchanged; not part of F1)`)
+end
+
+check("no remote handler raised an error (all sections)", #Shim.handlerErrors == 0, table.concat(Shim.handlerErrors, " | "))
+
+print(`\n[Probes] original sections 1-5: {originalPassed} passed, {originalFailed} failed`)
+print(`[Probes] correction sections 6-11: {passed - originalPassed} passed, {failed - originalFailed} failed`)
+print(`[Probes] total: {passed} passed, {failed} failed`)
 if failed > 0 then
 	error("probes failed", 0)
 end

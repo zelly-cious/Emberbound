@@ -1,25 +1,16 @@
 
 -- unit.luau (offline review harness): runs the shipped TestRunner Script unchanged.
 -- TestRunner discovers every *Tests ModuleScript in ServerScriptService.Tests and prints the verdict.
-local capturedLines = {}
-local realPrint = print
-print = function(...)
-	local parts = {}
-	for i = 1, select("#", ...) do
-		parts[i] = tostring((select(i, ...)))
-	end
-	table.insert(capturedLines, table.concat(parts, " "))
-	realPrint(...)
+-- The harness does not trust that verdict alone (Codex audit F3): Shim.checkTestRun also requires
+-- every expected suite to report, and no failure line anywhere.
+local lines = Shim.captureScript("ServerScriptService/Tests/TestRunner")
+for _, line in lines do
+	print(line)
 end
 
-Shim.runScript("ServerScriptService/Tests/TestRunner")
-
-local allPassed = false
-for _, line in capturedLines do
-	if string.find(line, "[Tests] ALL PASSED", 1, true) then
-		allPassed = true
-	end
+local expected = Shim.expectedSuites()
+local ok, problems = Shim.checkTestRun(lines, expected)
+if not ok then
+	error("unit tests did not pass:\n  " .. table.concat(problems, "\n  "), 0)
 end
-if not allPassed then
-	error("unit tests did not report ALL PASSED", 0)
-end
+print(`[Harness] verified: {#expected} suites reported, no failures`)

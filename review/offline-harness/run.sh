@@ -15,6 +15,7 @@ ROOT="$(cd "$HERE/../.." && pwd)"
 MODE="${1:?usage: run.sh unit|probes [path/to/luau]}"
 LUAU="${2:-${LUAU:-luau}}"
 M1_BASELINE="730218a" # verified Milestone 1 baseline, used only for formula-compatibility probes
+AUDITED="024cd68"     # Milestone 2 commit audited by Codex, used only for the BigNum differential probe
 
 case "$MODE" in
 	unit | probes) ;;
@@ -36,6 +37,11 @@ OUT="$OUT_DIR/bundle_$MODE.luau"
 	if git -C "$ROOT" cat-file -e "$M1_BASELINE^{commit}" 2>/dev/null; then
 		printf 'SOURCES["M1/ReplicatedStorage/Shared/GameConfig"] = [==========[\n'
 		git -C "$ROOT" show "$M1_BASELINE:src/ReplicatedStorage/Shared/GameConfig.luau" | tr -d '\r'
+		printf ']==========]\n'
+	fi
+	if git -C "$ROOT" cat-file -e "$AUDITED^{commit}" 2>/dev/null; then
+		printf 'SOURCES["AUDITED/ReplicatedStorage/Shared/BigNum"] = [==========[\n'
+		git -C "$ROOT" show "$AUDITED:src/ReplicatedStorage/Shared/BigNum.luau" | tr -d '\r'
 		printf ']==========]\n'
 	fi
 	tr -d '\r' < "$HERE/roblox_shim.luau"
