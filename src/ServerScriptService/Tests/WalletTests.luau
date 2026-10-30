@@ -121,6 +121,42 @@ local tests: { TestKit.TestCase } = {
 			expectEqual(BigNum.toString(BigNum.add(totalSpent, Wallet.get(wallet, GOLD))), "1000", "spent + left = starting Gold")
 		end,
 	},
+	-- Regression tests for Milestone 2 Codex audit finding F1 (subtraction precision near 2^53).
+	{
+		name = "spending across 2^53 leaves an exact whole balance",
+		run = function()
+			-- This purchase used to leave 4485383672432620.5 Gold.
+			local wallet = Wallet.new({ [GOLD] = n(9007199254740992) })
+			local cost = ProgressionConfig.GetUpgradeCost(ProgressionConfig.TapDamageUpgrade, 510)
+			expectEqual(BigNum.toString(cost), "4521815582308372", "level 510 cost")
+			expectTrue(Wallet.trySpend(wallet, GOLD, cost), "affordable")
+			expectEqual(balanceText(wallet, GOLD), "4485383672432620")
+		end,
+	},
+	{
+		name = "Gold is conserved when a balance crosses 2^53 and is spent back below it",
+		run = function()
+			-- Seeded. Balances above 2^53 are kept even: doubles there hold only even whole numbers.
+			local rng = Random.new(510)
+			for _ = 1, 200 do
+				local start = 9007199254740992 - 2 * rng:NextInteger(1, 1000000) -- even, below 2^53
+				local granted = 2 * rng:NextInteger(1100000, 2000000) -- lifts the balance at least 200000 above 2^53
+				local wallet = Wallet.new({ [GOLD] = n(start) })
+				expectTrue(Wallet.grant(wallet, GOLD, n(granted)), "grant")
+				local spent = 0
+				for _ = 1, 3 do -- at most 180000 in total, so the balance stays above 2^53
+					local cost = 2 * rng:NextInteger(1, 30000)
+					expectTrue(Wallet.trySpend(wallet, GOLD, n(cost)), "spend above 2^53")
+					expectTrue(Wallet.get(wallet, GOLD).e > 0, "the balance is still above 2^53")
+					spent += cost
+				end
+				-- One more spend lands on start - 1: an odd balance below 2^53, which must be exact.
+				local back = granted - spent + 1
+				expectTrue(Wallet.trySpend(wallet, GOLD, n(back)), "spend back below 2^53")
+				expectEqual(balanceText(wallet, GOLD), tostring(start - 1), `start {start}, granted {granted}, spent {spent + back}`)
+			end
+		end,
+	},
 	{
 		name = "snapshot lists every balance as canonical text",
 		run = function()

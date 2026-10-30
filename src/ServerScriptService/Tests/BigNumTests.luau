@@ -291,6 +291,90 @@ local tests: { TestKit.TestCase } = {
 			end, "writing to a frozen BigNum")
 		end,
 	},
+	-- Regression tests for the Milestone 2 Codex audit findings (F1, F2, F4).
+	{
+		name = "subtraction that returns below 2^53 is exact",
+		run = function()
+			-- F1: scientific form made 2^53 - (2^53 - 1) come out as 1.7763568394002502.
+			local twoPow53 = n(TWO_POW_53)
+			expectEqual(twoPow53.e, 15, "2^53 is stored in the large regime")
+			expectEqual(s(BigNum.sub(twoPow53, n(TWO_POW_53 - 1))), "1", "2^53 - (2^53 - 1)")
+			for distance = 1, 64 do
+				local difference = BigNum.sub(twoPow53, n(TWO_POW_53 - distance))
+				expectEqual(s(difference), tostring(distance), `2^53 - (2^53 - {distance})`)
+				expectEqual(difference.e, 0, "the result is back in the exact small regime")
+			end
+			expectEqual(s(BigNum.sub(twoPow53, n(1))), "9007199254740991", "2^53 - 1")
+			-- 2^53 + 2000 is a whole double above 2^53, so coming back below it must be exact.
+			local above = BigNum.add(n(TWO_POW_53 - 1000), n(3000))
+			expectEqual(s(BigNum.sub(above, n(2500))), "9007199254740492")
+			expectEqual(s(BigNum.sub(above, n(TWO_POW_53 - 1000))), "3000")
+			-- Two large operands whose difference is small give a whole number, not 3000000000000000.5.
+			expectEqual(s(BigNum.sub(p("1.5e16"), p("1.2e16"))), "3000000000000000")
+			expectEqual(s(BigNum.sub(p("1.0000000000000002e22"), p("1e22"))), "2097152")
+		end,
+	},
+	{
+		name = "subtraction with large results",
+		run = function()
+			expectEqual(s(BigNum.sub(p("3e16"), p("1e16"))), "2e16")
+			expectEqual(s(BigNum.sub(p("1e20"), n(5))), "1e20")
+			expectEqual(s(BigNum.sub(p("2e400"), p("5e399"))), "1.5e400")
+			expectTrue(BigNum.isZero(BigNum.sub(n(TWO_POW_53), n(TWO_POW_53))), "equal values give zero")
+			-- Below 10^16 the result is the correctly rounded double, for every pair (seeded).
+			local rng = Random.new(53)
+			for _ = 1, 200 do
+				local a = TWO_POW_53 + 2 * rng:NextInteger(0, 400000000) * 1000000
+				local b = rng:NextInteger(0, 1000000)
+				expectEqual(BigNum.toNumber(BigNum.sub(n(a), n(b))), a - b, `{a} - {b}`)
+			end
+		end,
+	},
+	{
+		name = "parse returns nil instead of overflowing during normalization",
+		run = function()
+			-- F2: these raised "BigNum overflow" from inside parse.
+			local overflowing = {
+				"10e9007199254740991",
+				"100e9007199254740990",
+				"99.5e9007199254740991",
+				string.rep("9", 40) .. "e9007199254740980",
+			}
+			for _, text in overflowing do
+				local ok, result = pcall(BigNum.parse, text)
+				expectTrue(ok, `parse("{text}") must not raise an error`)
+				expectNil(result, `parse("{text}")`)
+			end
+			-- The largest representable exponent still parses, however the text writes it.
+			local top = p("1000e9007199254740988")
+			expectEqual(top.e, 9007199254740991, "1000e(2^53 - 4) normalizes to exponent 2^53 - 1")
+			expectEqual(s(top), "1e9007199254740991")
+			expectEqual(p("99e9007199254740990").e, 9007199254740991)
+			expectEqual(p("9.99e9007199254740991").e, 9007199254740991)
+		end,
+	},
+	{
+		name = "the smallest positive doubles work in arithmetic",
+		run = function()
+			-- F4: subnormal values made toScientific divide by an underflowed 10^-324.
+			local tiny = n(5e-324) -- the smallest positive double
+			local product = BigNum.mul(tiny, p("1e400"))
+			expectTrue(BigNum.isValid(product), "5e-324 * 1e400 is valid")
+			expectNear(BigNum.log10(product), math.log10(5e-324) + 400, 1e-9, "5e-324 * 1e400")
+			expectTrue(BigNum.eq(BigNum.div(product, p("1e400")), tiny), "dividing back gives 5e-324, not zero")
+			expectNear(BigNum.log10(BigNum.div(n(1), tiny)), -math.log10(5e-324), 1e-9, "1 / 5e-324")
+			local smallestNormal = n(2.2250738585072014e-308)
+			expectNear(
+				BigNum.log10(BigNum.mul(smallestNormal, p("1e400"))),
+				math.log10(2.2250738585072014e-308) + 400,
+				1e-9,
+				"2.2250738585072014e-308 * 1e400"
+			)
+			expectEqual(s(BigNum.add(tiny, p("1e400"))), "1e400")
+			expectTrue(BigNum.eq(p(s(tiny)), tiny), "5e-324 round-trips through text")
+			expectTrue(BigNum.lt(tiny, n(1e-300)), "ordered")
+		end,
+	},
 }
 
 return {

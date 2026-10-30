@@ -19,6 +19,8 @@
 	large values, e.g. "13", "0.5", "1.5e400".
 ]]
 
+-- Every BigNum is frozen at runtime (see make). The fields are not marked `read`, because the old
+-- type solver rejects that syntax ("read keyword is illegal here") and Studio may use either solver.
 export type BigNum = {
 	m: number,
 	e: number,
@@ -27,6 +29,7 @@ export type BigNum = {
 local SMALL_LIMIT = 9007199254740992 -- 2^53: below this, doubles represent every integer exactly
 local MAX_EXPONENT = 9007199254740991 -- 2^53 - 1: largest exponent that is still an exact integer
 local SMALL_LOG_LIMIT = 16 -- below 10^16 a value may be computed with plain doubles first
+local MAX_EXACT_POWER_OF_TEN = 22 -- 10^22 is the largest power of ten a double holds exactly
 local IGNORE_GAP = 17 -- a value 17+ orders of magnitude smaller cannot change a sum or difference
 local MAX_TEXT_LENGTH = 64
 local SUFFIXES = { "", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc" }
@@ -34,7 +37,10 @@ local SUFFIXES = { "", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "
 local BigNum = {}
 
 local function make(m: number, e: number): BigNum
-	return table.freeze({ m = m, e = e })
+	local value: BigNum = { m = m, e = e }
+	-- Freezes in place. The cast stops the new solver from narrowing value to read-only fields.
+	table.freeze(value :: any)
+	return value
 end
 
 local ZERO = make(0, 0)
@@ -47,14 +53,34 @@ local function isFiniteNumber(value: unknown): boolean
 	return typeof(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge
 end
 
--- Brings any finite, non-negative m * 10^e (e an integer) into canonical form.
-local function normalize(m: number, e: number): BigNum
+--[[
+	m * 10^power and m / 10^power. Powers below -300 are applied in two steps:
+	subnormal doubles (down to 5e-324) need 10^-324, which underflows to zero on
+	its own. Every other power uses the single operation, so ordinary values
+	round exactly as before.
+]]
+local function multiplyByPowerOfTen(m: number, power: number): number
+	if power < -300 then
+		return m * 10 ^ (power + 300) * 1e-300
+	end
+	return m * 10 ^ power
+end
+
+local function divideByPowerOfTen(m: number, power: number): number
+	if power < -300 then
+		return m * 1e300 / 10 ^ (power + 300)
+	end
+	return m / 10 ^ power
+end
+
+-- Brings any finite, non-negative m * 10^e (e an integer) into canonical form; nil if e would exceed 2^53 - 1.
+local function tryNormalize(m: number, e: number): BigNum?
 	if m <= 0 then
 		return ZERO
 	end
 	if m < 1 or m >= 10 then
 		local shift = math.floor(math.log10(m))
-		m /= 10 ^ shift
+		m = divideByPowerOfTen(m, shift)
 		e += shift
 		if m >= 10 then
 			m /= 10
@@ -65,15 +91,24 @@ local function normalize(m: number, e: number): BigNum
 		end
 	end
 	if e > MAX_EXPONENT then
-		error("BigNum overflow: exponent exceeds 2^53 - 1", 3)
+		return nil
 	end
 	if e < SMALL_LOG_LIMIT then
-		local value = m * 10 ^ e
+		local value = multiplyByPowerOfTen(m, e)
 		if value < SMALL_LIMIT then
 			return make(value, 0)
 		end
 	end
 	return make(m, e)
+end
+
+-- tryNormalize for arithmetic results, where an exponent beyond 2^53 - 1 is an overflow error.
+local function normalize(m: number, e: number): BigNum
+	local value = tryNormalize(m, e)
+	if value == nil then
+		error("BigNum overflow: exponent exceeds 2^53 - 1", 3)
+	end
+	return value
 end
 
 -- Mantissa in [1, 10) and integer exponent for any non-zero value (small values included).
@@ -83,7 +118,7 @@ local function toScientific(value: BigNum): (number, number)
 	end
 	local mantissa = value.m
 	local exponent = math.floor(math.log10(mantissa))
-	mantissa /= 10 ^ exponent
+	mantissa = divideByPowerOfTen(mantissa, exponent)
 	if mantissa >= 10 then
 		mantissa /= 10
 		exponent += 1
@@ -270,6 +305,14 @@ function BigNum.sub(a: BigNum, b: BigNum): BigNum
 	if b.m == 0 then
 		return a
 	end
+	-- Scientific form loses the low digits here (2^53 - (2^53 - 1) came out as 1.776). Below 10^23
+	-- (10^22 is the largest exact power of ten) both operands convert to doubles in one rounding,
+	-- exactly below 10^16, so one correctly rounded subtraction is used instead. Doubles at or
+	-- above 2^53 are whole numbers, so a result below 2^53 is exact.
+	if a.e <= MAX_EXACT_POWER_OF_TEN then
+		local difference = BigNum.toNumber(a) - BigNum.toNumber(b)
+		return if difference > 0 then BigNum.fromNumber(difference) else ZERO
+	end
 	local smallM, smallE = toScientific(b)
 	local gap = a.e - smallE
 	if gap > IGNORE_GAP then
@@ -432,7 +475,8 @@ function BigNum.parse(text: unknown): BigNum?
 	if whole ~= nil and isFiniteNumber(whole) and whole < SMALL_LIMIT then
 		return if whole == 0 then ZERO else make(whole, 0)
 	end
-	return normalize(mantissa, exponent)
+	-- The normalized exponent can still exceed 2^53 - 1 ("10e9007199254740991"): nil, not an error.
+	return tryNormalize(mantissa, exponent)
 end
 
 -- Player-facing text: "999", "1.23K", "5.6M" ... "1.2Dc", then "1.23e456".
