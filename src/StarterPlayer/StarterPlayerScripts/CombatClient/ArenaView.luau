@@ -418,6 +418,9 @@ local function applyCamera(camera: Camera)
 	camera.CameraType = Enum.CameraType.Scriptable
 	camera.FieldOfView = CAMERA_FIELD_OF_VIEW
 	camera.CFrame = CFrame.lookAt(CAMERA_POSITION, CAMERA_FOCUS)
+	-- Scriptable cameras never update Focus on their own. The camera is stationary,
+	-- so setting it here (on lock, camera swap or CameraType reset) is enough.
+	camera.Focus = CFrame.new(CAMERA_FOCUS)
 end
 
 local function lockCamera(camera: Camera)

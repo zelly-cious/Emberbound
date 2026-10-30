@@ -171,6 +171,8 @@ local function start()
 			warn(`[CombatClient] No combat sync yet; re-sending ClientReady (attempt {attempt}/{SYNC_RETRY_ATTEMPTS})`)
 			clientReadyRemote:FireServer()
 		end
+		-- Give the final retry the same response window before concluding that sync failed.
+		task.wait(SYNC_RETRY_INTERVAL)
 		if currentSnapshot == nil then
 			warn("[CombatClient] Combat state never arrived. Check the server Output for CombatService errors.")
 		end
