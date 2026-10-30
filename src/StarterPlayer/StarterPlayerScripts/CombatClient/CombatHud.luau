@@ -10,16 +10,26 @@
 
 	It only renders what it is given; it never decides combat outcomes.
 	Sizes use Scale + constraints so the same layout works on phones and desktops.
-	The whole module can be replaced in the UI-polish milestone without
-	touching combat code.
+	Milestone 2: numbers arrive as BigNums and are formatted with BigNum.format;
+	Gold is set separately from combat updates (it comes from CurrencyUpdate).
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
-local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
+local BigNum = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("BigNum"))
 
-type CombatSnapshot = GameConfig.CombatSnapshot
+type BigNum = BigNum.BigNum
+
+-- Decoded combat state, built by CombatClient from a CombatSnapshot.
+export type CombatView = {
+	stage: number,
+	tapDamage: BigNum,
+	enemyId: number,
+	enemyName: string,
+	enemyHp: BigNum,
+	enemyMaxHp: BigNum,
+}
 
 type HudElements = {
 	screenGui: ScreenGui,
@@ -51,7 +61,6 @@ local POPUP_INFO = TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirectio
 local GOLD_POP_INFO = TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 
 local RIPPLE_SIZE = 0.14 -- fraction of the tap area (kept circular by an aspect constraint)
-local NUMBER_SUFFIXES = { "", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc" }
 
 local CombatHud = {}
 
@@ -59,30 +68,6 @@ local elements: HudElements? = nil
 local healthTween: Tween? = nil
 local goldPopTween: Tween? = nil
 local random = Random.new()
-
--- 999 -> "999", 1234 -> "1.23K", 5600000 -> "5.6M". Ready for large incremental numbers.
-local function formatNumber(value: number): string
-	if value ~= value then
-		return "0"
-	end
-	local absolute = math.abs(value)
-	if absolute < 1000 then
-		return tostring(math.floor(value))
-	end
-
-	local tier = math.floor(math.log10(absolute) / 3)
-	local scaled = value / 10 ^ (tier * 3)
-	if math.abs(scaled) >= 999.995 then -- avoid "1000.00K"
-		tier += 1
-		scaled /= 1000
-	end
-	if tier >= #NUMBER_SUFFIXES then
-		return string.format("%.2e", value)
-	end
-
-	local text = (string.format("%.2f", scaled):gsub("%.?0+$", ""))
-	return text .. NUMBER_SUFFIXES[tier + 1]
-end
 
 local function addCorner(guiObject: GuiObject, radius: UDim)
 	local corner = Instance.new("UICorner")
@@ -295,22 +280,21 @@ function CombatHud.Mount(playerGui: PlayerGui)
 	}
 end
 
--- Shows the authoritative snapshot. instantHealthBar skips the bar tween (used when a new enemy appears).
-function CombatHud.Render(snapshot: CombatSnapshot, instantHealthBar: boolean)
+-- Shows the authoritative combat state. instantHealthBar skips the bar tween (used when a new enemy appears).
+function CombatHud.Render(view: CombatView, instantHealthBar: boolean)
 	local ui = getElements()
 	if not ui then
 		return
 	end
 
-	ui.stageLabel.Text = `Stage {snapshot.stage}`
-	ui.goldLabel.Text = `Gold: {formatNumber(snapshot.gold)}`
-	ui.enemyNameLabel.Text = snapshot.enemyName
-	ui.healthText.Text = `{formatNumber(snapshot.enemyHp)} / {formatNumber(snapshot.enemyMaxHp)}`
-	ui.tapDamageLabel.Text = `Tap Damage: {formatNumber(snapshot.tapDamage)}`
+	ui.stageLabel.Text = `Stage {view.stage}`
+	ui.enemyNameLabel.Text = view.enemyName
+	ui.healthText.Text = `{BigNum.format(view.enemyHp)} / {BigNum.format(view.enemyMaxHp)}`
+	ui.tapDamageLabel.Text = `Tap Damage: {BigNum.format(view.tapDamage)}`
 
 	local ratio = 0
-	if snapshot.enemyMaxHp > 0 then
-		ratio = math.clamp(snapshot.enemyHp / snapshot.enemyMaxHp, 0, 1)
+	if not BigNum.isZero(view.enemyMaxHp) then
+		ratio = math.clamp(BigNum.ratio(view.enemyHp, view.enemyMaxHp), 0, 1)
 	end
 	local targetSize = UDim2.fromScale(ratio, 1)
 
@@ -327,6 +311,15 @@ function CombatHud.Render(snapshot: CombatSnapshot, instantHealthBar: boolean)
 		healthTween = tween
 		tween:Play()
 	end
+end
+
+-- Shows the authoritative Gold balance (from CurrencyUpdate).
+function CombatHud.SetGold(gold: BigNum)
+	local ui = getElements()
+	if not ui then
+		return
+	end
+	ui.goldLabel.Text = `Gold: {BigNum.format(gold)}`
 end
 
 -- True if a screen position (InputObject.Position space) is inside the combat tap area.
@@ -384,7 +377,7 @@ function CombatHud.PlayTapRipple(screenPosition: Vector2)
 end
 
 -- Floating damage number near the enemy for a server-confirmed hit.
-function CombatHud.ShowDamage(amount: number)
+function CombatHud.ShowDamage(amount: BigNum)
 	local ui = getElements()
 	if not ui then
 		return
@@ -394,7 +387,7 @@ function CombatHud.ShowDamage(amount: number)
 	label.AnchorPoint = Vector2.new(0.5, 0.5)
 	label.Position = UDim2.fromScale(0.5 + random:NextNumber(-0.07, 0.07), 0.42 + random:NextNumber(-0.05, 0.05))
 	label.Size = UDim2.fromScale(0.16, 0.09)
-	label.Text = `-{formatNumber(amount)}`
+	label.Text = `-{BigNum.format(amount)}`
 	label.TextColor3 = DAMAGE_COLOR
 	label.ZIndex = 3
 
@@ -402,7 +395,7 @@ function CombatHud.ShowDamage(amount: number)
 end
 
 -- "+X Gold" popup under the gold counter plus a small pop of the counter.
-function CombatHud.ShowGoldGain(amount: number)
+function CombatHud.ShowGoldGain(amount: BigNum)
 	local ui = getElements()
 	if not ui then
 		return
@@ -421,7 +414,7 @@ function CombatHud.ShowGoldGain(amount: number)
 	label.AnchorPoint = Vector2.new(0.5, 0)
 	label.Position = UDim2.fromScale(0.5, 1.1)
 	label.Size = UDim2.fromScale(0.9, 0.8)
-	label.Text = `+{formatNumber(amount)} Gold`
+	label.Text = `+{BigNum.format(amount)} Gold`
 	label.TextColor3 = GOLD_COLOR
 	label.ZIndex = 3
 

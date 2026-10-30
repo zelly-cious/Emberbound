@@ -3,15 +3,17 @@
 	ServerInit
 	Location: ServerScriptService > ServerInit (Script)
 
-	Server entry point. Starts CombatService and ties it to the player
-	lifecycle. Players who joined before this script ran are picked up by
-	the loop at the bottom, so startup order never matters.
+	Server entry point. Starts the services' remote handlers, then the player
+	lifecycle. PlayerSessionService picks up players who joined before this
+	script ran, so startup order never matters.
 ]]
 
 local Players = game:GetService("Players")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local CombatService = require(ServerScriptService:WaitForChild("CombatService"))
+local UpgradeService = require(ServerScriptService:WaitForChild("UpgradeService"))
+local PlayerSessionService = require(ServerScriptService:WaitForChild("PlayerSessionService"))
 
 -- The prototype has no avatar. This is also set in Studio; the runtime check is a safety net.
 if Players.CharacterAutoLoads then
@@ -19,17 +21,7 @@ if Players.CharacterAutoLoads then
 	Players.CharacterAutoLoads = false
 end
 
+-- Remote handlers first, then the lifecycle (which may immediately add players already in the game).
 CombatService.Start()
-
-Players.PlayerAdded:Connect(function(player: Player)
-	CombatService.AddPlayer(player)
-end)
-
-Players.PlayerRemoving:Connect(function(player: Player)
-	CombatService.RemovePlayer(player)
-end)
-
--- AddPlayer is idempotent, so a player caught by both PlayerAdded and this loop is handled once.
-for _, player in Players:GetPlayers() do
-	CombatService.AddPlayer(player)
-end
+UpgradeService.Start()
+PlayerSessionService.Start()
