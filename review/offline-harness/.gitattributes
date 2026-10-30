@@ -1,0 +1,2 @@
+# Keep the harness runnable from Git Bash on Windows checkouts.
+*.sh text eol=lf

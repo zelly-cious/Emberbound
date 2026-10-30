@@ -1,12 +1,13 @@
-# Repository rules for Emberbound Milestone 1
+# Repository rules for the Emberbound Milestone 2 review
 
-- Task is **read-only audit**: no edits, no refactors, no generated code, no commits, and no pushes unless the user explicitly requests a later implementation task.
-- Prioritize defects with concrete runtime, exploit, correctness, or reliability impact. No stylistic churn, speculative issues, or unrequested Milestone 2 features.
-- Roblox server is authoritative over stage, gold, enemy HP, tap damage, rate limits, and enemy death rewards. Requests from clients must not choose damage or rewards.
-- Every player must have independent combat state. Each defeated enemy rewards exactly once. The client generates local enemy models and UI; the fixed camera must not rely on a spawned player character.
-- Multiple damage sources (future hero DPS) should be able to use the central damage pipeline; assess extensibility without insisting on premature redesign.
-- Audit all six Luau files and the declared Explorer hierarchy together. Inspect event ordering, `ClientReady` sync, error paths, cleanup, out-of-order responses, performance, and cross-platform input behavior.
-- Distinguish **confirmed code defects**, **risks requiring Roblox Studio tests**, and **optional improvements**. Do not fabricate runtime tests, engine outputs, or official Roblox API verification.
-- Cite every finding by exact file path, function, and line(s); give a minimal reproduction/trigger, impact, and least disruptive fix.
-- Severity: Critical (exploitable loss/security or fundamentally broken), High (user-facing correctness/security blocker), Medium (important edge case), Low (nonblocking improvement). Use evidence-based severity.
-- `QA_REPORT.md` contains user-reported passes; do not downgrade proven code defects solely because basic functionality passed.
+- Task is a **read-only audit** of Milestone 2 (Tap Upgrades, Economy & BigNum) at commit `024cd68838d6c34633a00e7eadcb320c251186f0`: no edits, no refactors, no generated code, no commits and no pushes unless the user explicitly requests a later implementation task.
+- Start with `CODEX_REVIEW_HANDOFF.md`. Scope and exit criteria are in `M2_REQUIREMENTS.md`; architecture, contracts and checklists in `M2_REVIEW_GUIDE.md`; what was actually executed in `review/M2_CHECK_RESULTS.md`.
+- Audit all 23 Luau files under `src/` and the declared Explorer hierarchy together. Diff against the Milestone 1 baseline with `git diff 730218a 024cd68 -- src`.
+- Prioritize defects with concrete runtime, exploit, economy, correctness or reliability impact. No stylistic churn and no speculative issues.
+- The server is authoritative over stage, Gold, enemy HP, tap damage, upgrade levels, prices, rate limits and rewards. Client requests must never choose damage, prices, amounts or outcomes.
+- Gold must never go negative, never be charged twice for one level, and never be granted more than once per defeated enemy. Every player's state must stay independent.
+- Do **not** implement or demand Milestone 3+ features (persistence, heroes, gacha, Gems, Crowns, equipment, trading) or the approved Milestone 2.1 StatService (`DECISIONS.md`). Assess whether the code can grow into them; flag only concrete blockers.
+- Distinguish **confirmed code defects**, **risks requiring Roblox Studio tests**, and **optional improvements**. Do not fabricate runtime tests, engine output or official Roblox API verification.
+- Cite every finding by exact file path, function and line(s); give a minimal trigger, impact and least disruptive fix.
+- Severity: Critical (exploitable loss/duplication or fundamentally broken), High (user-facing correctness or security blocker), Medium (important edge case), Low (non-blocking). Use evidence-based severity.
+- The offline harness in `review/` is review tooling, not game code. Its results come from the Luau CLI with a fake engine, not from Roblox Studio. `QA_REPORT.md` contains user-reported **Milestone 1** results only; there is no Milestone 2 Studio QA.
