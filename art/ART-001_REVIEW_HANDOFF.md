@@ -16,7 +16,7 @@ Status: Phase 2 (implementation) complete and checked offline. **Phase 3 (Roblox
 - Branched from `main` (`730218a`, the Milestone 1 baseline). `feature/m2-tap-upgrades-bignum` (PR #1) is **not** an ancestor and was not merged in.
 - Only new files are added. No existing file is modified, renamed or deleted: no gameplay script, RemoteEvent, `GameConfig`, `SOURCE_HASHES.txt`, `README.md`, `AGENTS.md`, requirement or review document.
 - No path overlaps with PR #1's changes, so the two branches cannot conflict.
-- The new modules never run on their own: `ReplicatedStorage/Shared/Visuals/*` are ModuleScripts nothing requires yet, and `ServerStorage/EmberDev/SlimePreview` never replicates. Its commands that build anything or move the camera (`show`, `lineup`, `gameplayCamera`, `check`) refuse to run during Play; `clear` and `help` stay available. (`gameplayCamera` gained this guard in the review corrections.)
+- The new modules never run on their own: `ReplicatedStorage/Shared/Visuals/*` are ModuleScripts nothing requires yet, and `ServerStorage/EmberDev/SlimePreview` never replicates. Its commands that build anything or move the camera (`show`, `lineup`, `gameplayCamera`, `check`) refuse unless Studio is in Edit mode (`RunService:IsEdit()`), so both a running and a paused playtest are rejected; `clear` and `help` stay available. The installer uses the same Edit-mode requirement. (`gameplayCamera` gained its guard in the review corrections; the switch from "not running" to "is Edit" came from Codex's review, section 13.)
 - The Milestone 2 test runner only loads ModuleScripts named `*Tests` in `ServerScriptService/Tests`; none were added, so its 61 tests and seven suites are unaffected.
 
 ## 3. How this branch was prepared
@@ -34,12 +34,13 @@ Both commits were pushed to GitHub as prepared, followed by a third commit that 
 |---|---|---|
 | `src/ReplicatedStorage/Shared/Visuals/VisualPalette.luau` | Official palette and colour helpers | `c2944647d9252bdf64c6416384c93895974f863d731b9ebf9da85c85b87566b0` |
 | `src/ReplicatedStorage/Shared/Visuals/SlimeModelFactory.luau` | Model source (factory) | `5ea8b387b172d0dc83a2a2dbd2a32cb9069342c229c4ce2757f161cd2c6e6662` |
-| `src/ServerStorage/EmberDev/SlimePreview.luau` | Edit-mode preview and 18 automatic checks | `a8715f201a4921e6e115cbc14120be8bbf53c13e1e1c2d3d3cbd7e031711f547` |
+| `src/ServerStorage/EmberDev/SlimePreview.luau` | Edit-mode preview and 18 automatic checks | `5383454e073399f110fcbda25cbe3cd496eaa196f63102682cd5804393a150da` |
 | `art/enemies/slime/source/InstallSlimeV1.luau` | Command Bar installer embedding the three modules verbatim (generated) | — |
 | `art/enemies/slime/source/build_installer.py` | Generates the installer; verifies repository parity (byte-for-byte, SHA-256) | — |
 | `art/enemies/slime/source/SOURCE_SHA256.txt` | SHA-256 record of the three modules | — |
 | `art/enemies/slime/review/ART-001_INTERNAL_REVIEW.md` | Claude's internal review of `44a267b`, preserved as delivered (not a fully independent review) | — |
 | `art/enemies/slime/review/ART-001_CORRECTIONS_REPORT.md` | Finding-by-finding resolution and test results | — |
+| `art/enemies/slime/review/ART-001_CODEX_REVIEW.md` | Codex's independent review of `bbca679`, preserved exactly as delivered | — |
 | `art/enemies/slime/ART-001_SLIME_V1.md` | Specification, hierarchy, Studio tests T1–T11, performance checklist, integration plan | — |
 | `art/enemies/slime/README.md` | Asset record and Roblox compatibility table | — |
 | `art/enemies/slime/previews/slime-v1-offline-approximation.png` | Offline ray-traced approximation of the exact part geometry (**not** a Studio screenshot) | — |
@@ -63,7 +64,7 @@ Done offline by Claude (evidence, not Studio results):
 - Roblox's actual rendering, lighting and materials.
 - Whether `Model:ScaleTo` changes `SpecialMesh.Scale` in the real engine (Studio test T1).
 - Strict-mode type checking with Roblox's type definitions (Studio Script Analysis).
-- Command Bar acceptance of the 59 KB installer paste (51 KB before the review corrections; manual Method B exists as a fallback).
+- Command Bar acceptance of the about 62 KB installer paste (51 KB at the handoff, 59 KB after the first corrections; manual Method B exists as a fallback).
 
 ## 6. Studio validation (pending)
 
@@ -90,11 +91,11 @@ Review these files:
 Check:
 1. Isolation: no changes to existing files; no gameplay, combat, currency, RemoteEvent,
    DataStore or networking code; nothing requires the new modules; the preview cannot run
-   during Play; the installer only creates or replaces the three art ModuleScripts and
+   outside Edit mode (running or paused Play); the installer only creates or replaces the three art ModuleScripts and
    their two folders, and changes nothing when they already exist.
 2. Roblox API correctness: properties, enums and methods used exist and are used correctly
    (Part, SpecialMesh, Attachment, Model.PrimaryPart, PivotTo, ScaleTo, CFrame.lookAt,
-   Color3.fromHex, Camera, RunService:IsRunning).
+   Color3.fromHex, Camera, RunService:IsEdit and IsRunning).
 3. Luau --!strict typing problems the type checker would report.
 4. Geometry: pivot and orientation contract, face details placed on the body surface,
    build-time scaling keeps proportions, no parts float or poke through.
@@ -170,3 +171,16 @@ The two optional observations were then decided by the producer (section 12). Al
 | 4. Review acceptance | Claude's review is accepted as an **internal review**, sufficient to proceed to Studio validation. It is not described as fully independent; a separate reviewer may still be used later. The preserved review file is now `ART-001_INTERNAL_REVIEW.md` (findings unchanged) |
 
 **ART-001 is frozen** until Roblox Studio testing. T1–T11, including all 18 automated preview checks and Script Analysis, remain mandatory, and none has been run. After Milestone 2 (PR #1) is approved and merged, this branch will be updated against the new `main`, and merging ART-001 will be considered once its own Studio testing passes.
+
+## 13. Codex independent review and scoped fix (2026-11-01)
+
+Codex independently reviewed `bbca679` (preserved in `enemies/slime/review/ART-001_CODEX_REVIEW.md`): **CONDITIONAL PASS**, ready for Studio validation in Edit mode, not ready to merge; 0 Critical, 0 High, 1 Medium, 3 Low. It confirmed that the earlier corrections and the `FaceAnchor` rename are resolved. The producer approved lifting the freeze for one scoped fix:
+
+| Finding | Resolution |
+|---|---|
+| Medium — guards accepted a paused playtest (`IsRunning()` and `IsEdit()` are both false while paused) | Preview and installer now require `RunService:IsEdit()`. Errors say whether the playtest is running or paused |
+| Low — simulated-Play check could lose an existing preview if a guard regressed | An existing preview is parked outside Workspace during the check and always restored; any folder a regressed command creates is removed and reported |
+| Low — simulated-Play check ignored `Camera.Focus` | The check now detects changes to CFrame, Focus and FieldOfView, restores all three, and simulates both running and paused states |
+| Low — T11 marked optional | T11 is mandatory and covers running and paused Play, the preview and the installer, no place changes and no camera movement |
+
+Unchanged: geometry, materials, palette, `FaceAnchor`, the 18-check count, and every approved art decision. Verified offline only (fake engine); see the corrections report, section 8. **ART-001 is frozen again** until Roblox Studio testing; T1–T11 and Script Analysis remain mandatory, and none has been run.

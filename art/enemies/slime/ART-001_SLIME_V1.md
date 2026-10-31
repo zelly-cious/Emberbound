@@ -1,9 +1,9 @@
 # ART-001 — Standard Slime V1 (procedural model)
 
-**Status:** Phase 2 implemented on branch `feature/art-slime-v1` (based on `main` at `730218a`). Review corrections and producer decisions applied. **Frozen** until Phase 3 Roblox Studio testing: no further changes until T1–T11 results are in. No Studio test has been run yet.
+**Status:** Phase 2 implemented on branch `feature/art-slime-v1` (based on `main` at `730218a`). Review corrections, producer decisions and the fixes from Codex's independent review applied. **Frozen** until Phase 3 Roblox Studio testing: no further changes until T1–T11 results are in. (The freeze was lifted once, by producer approval, for the scoped Codex fixes, then reinstated.) No Studio test has been run yet.
 
 **Document history:** written in ART-001 Phase 2 at `art/ART-001_SLIME_V1.md`. Moved to `art/enemies/slime/` during the asset handoff; only file paths and the branch name were updated. No specification was changed.
-Corrected on 2026-11-01 after Claude's internal review of `44a267b` (four Low findings): gloss seating, installer parity tooling, height figures and the preview camera guard. Then, by producer decision, the Root attachment `Face` was renamed `FaceAnchor`. See [`review/ART-001_CORRECTIONS_REPORT.md`](review/ART-001_CORRECTIONS_REPORT.md); the review itself is preserved in [`review/ART-001_INTERNAL_REVIEW.md`](review/ART-001_INTERNAL_REVIEW.md). It is accepted as an internal review, not a fully independent one.
+Corrected on 2026-11-01 after Claude's internal review of `44a267b` (four Low findings): gloss seating, installer parity tooling, height figures and the preview camera guard. Then, by producer decision, the Root attachment `Face` was renamed `FaceAnchor`. Then Codex's independent review of `bbca679` (1 Medium, 3 Low) was resolved: the preview and installer now require Studio's Edit mode, so a paused playtest is rejected too; the simulated-Play check is stronger; and T11 is mandatory. The Codex review is preserved in [`review/ART-001_CODEX_REVIEW.md`](review/ART-001_CODEX_REVIEW.md). See [`review/ART-001_CORRECTIONS_REPORT.md`](review/ART-001_CORRECTIONS_REPORT.md); the review itself is preserved in [`review/ART-001_INTERNAL_REVIEW.md`](review/ART-001_INTERNAL_REVIEW.md). It is accepted as an internal review, not a fully independent one.
 **Not integrated:** nothing in the game uses this model yet. `ArenaView` still builds the Milestone 1 slime. Milestone 2 (PR #1) is untouched.
 
 ## 1. Files
@@ -26,7 +26,7 @@ SHA-256 of the three source files (also in `source/SOURCE_SHA256.txt`):
 ```text
 c2944647d9252bdf64c6416384c93895974f863d731b9ebf9da85c85b87566b0  src/ReplicatedStorage/Shared/Visuals/VisualPalette.luau
 5ea8b387b172d0dc83a2a2dbd2a32cb9069342c229c4ce2757f161cd2c6e6662  src/ReplicatedStorage/Shared/Visuals/SlimeModelFactory.luau
-a8715f201a4921e6e115cbc14120be8bbf53c13e1e1c2d3d3cbd7e031711f547  src/ServerStorage/EmberDev/SlimePreview.luau
+5383454e073399f110fcbda25cbe3cd496eaa196f63102682cd5804393a150da  src/ServerStorage/EmberDev/SlimePreview.luau
 ```
 
 There are two separate checks:
@@ -155,7 +155,7 @@ Each Command Bar entry runs on its own, so every command below is one complete l
 | T8 | **File → Studio Settings → Rendering**, set **Editor Quality Level** to **Level 1**, look at the slime, then set it back to **Automatic** | The slime still reads clearly with low graphics (shadows may disappear; the ground ring stays) | The slime becomes unreadable |
 | T9 | `require(game.ServerStorage.EmberDev.SlimePreview).clear()` | `Preview removed.` in Output; `_EmberSlimePreview` is gone from Workspace; your camera is back where it was | Folder remains or an error appears |
 | T10 | Press **Play**, play for a minute (tap the slime, defeat a few), then press **Stop** | The game behaves exactly as before: the **old** slime appears, tapping and Gold work, and no new red errors appear | Anything in gameplay changed or new errors appear |
-| T11 (optional) | During Play, paste the T2 command, then the T5 command | Each refuses with a red error and changes nothing: on the server it says `Stop the playtest first`; if the Command Bar runs on the client, ServerStorage is hidden there, so the `require` itself fails instead | A preview appears or the camera moves during Play |
+| T11 (mandatory) | Before starting, note where your camera is and what Workspace, ServerStorage → EmberDev and ReplicatedStorage → Shared → Visuals contain. **(a) Running:** press **Play**, switch the playtest view to **Server** (the Client/Server toggle) so the Command Bar runs on the server, then paste, one at a time, the T2 command, the T5 command and the whole installer. **(b) Paused:** press **Pause** and paste the same three again. **(c)** Press **Stop** | In (a) each preview command shows a red error beginning `[SlimePreview] Stop the playtest first (it is running)`, and the installer shows an orange warning `[ART-001 installer] Stop the playtest first (it is running); run the installer in Edit mode. Nothing was changed.` In (b) the same, with `(it is paused)`. In both: no `_EmberSlimePreview` appears in Workspace, the installer creates and replaces nothing, and the camera does not move. After (c) the Edit-mode place is exactly as it was. If the Command Bar was on the client, ServerStorage is hidden there, so the preview `require` fails with a red error instead: also a refusal, but switch to Server and repeat | Any preview is built, any module or folder is created or changed, the camera moves, or any command runs while running **or** paused |
 
 **Special case:** if T1's `Model:ScaleTo keeps built-in meshes in step` check fails, the preview is still valid. That check only matters for the future integration (the game's hit squash uses `ScaleTo`). Report it, and the fallback is a plain-sphere body.
 
@@ -181,7 +181,7 @@ T8 low graphics: PASS/FAIL
 Cheek visibility (T7/T8, observation only): clear / weak / not visible
 T9 clear: PASS/FAIL
 T10 gameplay unchanged: PASS/FAIL
-T11 (optional): PASS/FAIL
+T11 Play refusal, running AND paused (mandatory): PASS/FAIL (paste the red/orange lines for both)
 Any red errors: (paste)
 Look and feel notes: (anything to tune: colours, gloss size, cheek strength, sprout)
 ```
@@ -231,6 +231,7 @@ The preview folder is never saved into the place (`Archivable = false`), so it c
 - All three modules and the installer were compiled and run in the real Luau VM against a small fake Roblox engine: all 16 `check()` items passed, plus extra checks that face details sit on the body surface, the shines sit on the eyes, the smile strokes meet, balls are uniform, the preview manages only its own folder and camera, and the preview refuses to run during Play. The installer was tested for fresh install, refusal when already installed, and replace mode.
 - An approximate offline render from the gameplay camera was used to tune the skirt.
 - **Correction (2026-11-01):** the Phase 2 extra check above did not measure the gloss rim. Claude's internal review found its two ends lifted up to 0.034 studs off the body; that is fixed, and `check()` now measures seating itself. The offline preview image predates this fix (the change is under 0.04 studs at scale 1).
+- Codex review fixes, offline (fake engine, not Studio): the guards were tested in simulated Edit, running and paused states (the paused-Play defect was reproduced on `bbca679` and is gone); mutation tests confirm the extended check catches a "not running" guard, a Focus-only camera change and a missing `show()` guard without losing an existing preview. Details in `review/ART-001_CORRECTIONS_REPORT.md` section 8.
 - Review corrections, offline (fake engine, not Studio): all 18 `check()` items pass from the repository files and from the regenerated installer; mutation tests confirm the two new checks fail on the original gloss values and on an unguarded `gameplayCamera()`; installer fresh, refuse and replace runs behave as before; `build_installer.py` verifies parity and rejects same-length edits. Details in `review/ART-001_CORRECTIONS_REPORT.md`.
 - **Not verifiable offline:** Roblox's own rendering and lighting, `Model:ScaleTo`'s effect on SpecialMeshes (T1 checks it in Studio), and strict-mode type checking with Roblox's type definitions (open each ModuleScript in Studio's Script Editor; the Script Analysis window should show no errors).
 
@@ -243,6 +244,6 @@ Created:
 - `src/ServerStorage/EmberDev/SlimePreview.luau`
 - `art/enemies/slime/source/InstallSlimeV1.luau`
 - `art/enemies/slime/ART-001_SLIME_V1.md`
-- Review corrections: `art/enemies/slime/source/build_installer.py`, `art/enemies/slime/source/SOURCE_SHA256.txt`, `art/enemies/slime/review/ART-001_INTERNAL_REVIEW.md`, `art/enemies/slime/review/ART-001_CORRECTIONS_REPORT.md`
+- Review corrections: `art/enemies/slime/source/build_installer.py`, `art/enemies/slime/source/SOURCE_SHA256.txt`, `art/enemies/slime/review/ART-001_INTERNAL_REVIEW.md`, `art/enemies/slime/review/ART-001_CORRECTIONS_REPORT.md`, `art/enemies/slime/review/ART-001_CODEX_REVIEW.md`
 
 Modified: none of the files that existed before ART-001. Not touched: every existing file under `src/`, `SOURCE_HASHES.txt`, `README.md`, all requirement and review documents, the Milestone 2 branch and PR #1.

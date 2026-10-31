@@ -73,8 +73,11 @@ local ART_SOURCES = {}
 BODY = """
 (function()
 \tlocal PREFIX = "[ART-001 installer]"
-\tif game:GetService("RunService"):IsRunning() then
-\t\twarn(PREFIX, "Stop the playtest first; run the installer in Edit mode. Nothing was changed.")
+\t-- Require Edit mode itself: a paused playtest reports IsRunning() = false as well as IsEdit() = false.
+\tlocal RunService = game:GetService("RunService")
+\tif not RunService:IsEdit() then
+\t\tlocal how = if RunService:IsRunning() then "it is running" else "it is paused"
+\t\twarn(PREFIX, `Stop the playtest first ({how}); run the installer in Edit mode. Nothing was changed.`)
 \t\treturn
 \tend
 

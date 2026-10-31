@@ -111,14 +111,24 @@ local SlimePreview = {}
 -- Helpers
 ---------------------------------------------------------------------------
 
--- check() swaps this for a moment to simulate a running playtest; nothing else changes it.
-local isPlaytestRunning: () -> boolean = function()
-	return RunService:IsRunning()
-end
+-- Studio state as the guard sees it. A paused playtest reports IsRunning() = false AND
+-- IsEdit() = false, so the guard requires IsEdit() rather than "not running". check() swaps in
+-- simulated running and paused states for a moment; nothing else changes playState.
+type PlayState = { isEdit: () -> boolean, isRunning: () -> boolean }
+local LIVE_STATE: PlayState = {
+	isEdit = function()
+		return RunService:IsEdit()
+	end,
+	isRunning = function()
+		return RunService:IsRunning()
+	end,
+}
+local playState: PlayState = LIVE_STATE
 
 local function guardEditMode()
-	if isPlaytestRunning() then
-		error(`{PREFIX} Stop the playtest first: the preview runs in Edit mode only.`, 0)
+	if not playState.isEdit() then
+		local how = if playState.isRunning() then "it is running" else "it is paused"
+		error(`{PREFIX} Stop the playtest first ({how}): the preview runs in Edit mode only.`, 0)
 	end
 end
 
@@ -814,13 +824,42 @@ function SlimePreview.check(): boolean
 		return `eyes about {math.floor(eyePixels)} px, smile about {string.format("%.1f", smilePixels)} px on a {PHONE_VIEWPORT_HEIGHT} px tall screen`
 	end)
 
-	run("Preview commands refuse to run during Play (simulated) and change nothing", function()
+	run("Preview commands refuse outside Edit mode (simulated running and paused Play) and change nothing", function()
 		local camera = Workspace.CurrentCamera
 		local cameraBefore = if camera then camera.CFrame else nil
 		local focusBefore = if camera then camera.Focus else nil
 		local fieldOfViewBefore = if camera then camera.FieldOfView else nil
 		local savedBefore = savedCamera
-		local folderBefore = Workspace:FindFirstChild(FOLDER_NAME)
+		-- Park any preview that is already showing outside Workspace, so a command whose guard
+		-- went missing cannot destroy or replace it. It is put back below in every case.
+		local existingPreview = Workspace:FindFirstChild(FOLDER_NAME)
+		if existingPreview then
+			existingPreview.Parent = nil
+		end
+		local simulatedStates: { { name: string, state: PlayState } } = {
+			{
+				name = "running",
+				state = {
+					isEdit = function()
+						return false
+					end,
+					isRunning = function()
+						return true
+					end,
+				},
+			},
+			{
+				name = "paused",
+				state = {
+					isEdit = function()
+						return false
+					end,
+					isRunning = function()
+						return false
+					end,
+				},
+			},
+		}
 		local commands: { { name: string, call: () -> () } } = {
 			{
 				name = "gameplayCamera",
@@ -842,42 +881,54 @@ function SlimePreview.check(): boolean
 			},
 		}
 		local results: { { name: string, ok: boolean, message: string } } = {}
-		local realCheck = isPlaytestRunning
-		isPlaytestRunning = function()
-			return true
-		end
-		for _, command in commands do
-			local ok, message = pcall(command.call)
-			table.insert(results, { name = command.name, ok = ok, message = tostring(message) })
-		end
-		isPlaytestRunning = realCheck
+		local harnessOk, harnessProblem = pcall(function()
+			for _, simulated in simulatedStates do
+				playState = simulated.state
+				for _, command in commands do
+					local ok, message = pcall(command.call)
+					table.insert(
+						results,
+						{ name = `{command.name}() while {simulated.name}`, ok = ok, message = tostring(message) }
+					)
+				end
+			end
+		end)
+		playState = LIVE_STATE
 
-		-- Record what changed, then undo it so a missing guard is reported without side effects.
-		local folderAfter = Workspace:FindFirstChild(FOLDER_NAME)
+		-- Record what changed, then undo all of it (camera, saved camera, preview folders) so a
+		-- missing guard is reported without side effects.
+		local createdPreview = Workspace:FindFirstChild(FOLDER_NAME)
 		local savedChanged = savedCamera ~= savedBefore
 		local cameraMoved = false
 		if camera and cameraBefore and focusBefore and fieldOfViewBefore then
-			cameraMoved = camera.CFrame ~= cameraBefore or camera.FieldOfView ~= fieldOfViewBefore
+			cameraMoved = camera.CFrame ~= cameraBefore
+				or camera.Focus ~= focusBefore
+				or camera.FieldOfView ~= fieldOfViewBefore
 			camera.CFrame = cameraBefore
 			camera.Focus = focusBefore
 			camera.FieldOfView = fieldOfViewBefore
 		end
-		if folderAfter ~= nil and folderAfter ~= folderBefore then
-			folderAfter:Destroy()
+		while Workspace:FindFirstChild(FOLDER_NAME) do
+			(Workspace:FindFirstChild(FOLDER_NAME) :: Instance):Destroy()
+		end
+		if existingPreview then
+			existingPreview.Parent = Workspace
 		end
 		savedCamera = savedBefore
 
+		expect(harnessOk, `the simulated test itself failed: {tostring(harnessProblem)}`)
 		for _, result in results do
-			expect(not result.ok, `{result.name}() ran during the simulated playtest`)
+			expect(not result.ok, `{result.name} was not refused`)
 			expect(
 				string.find(result.message, "Stop the playtest first", 1, true) ~= nil,
-				`{result.name}(): unexpected error "{result.message}"`
+				`{result.name}: unexpected error "{result.message}"`
 			)
 		end
-		expect(folderAfter == folderBefore, "the preview folder changed")
+		expect(createdPreview == nil, "a preview folder was created")
 		expect(not savedChanged, "the saved camera changed")
-		expect(not cameraMoved, "the camera moved")
-		return "gameplayCamera, show and lineup refused"
+		expect(not cameraMoved, "the camera moved (CFrame, Focus or FieldOfView)")
+		expect(#results == #simulatedStates * #commands, "not every command was tried")
+		return `gameplayCamera, show and lineup refused while running and while paused`
 	end)
 
 	slime:Destroy()

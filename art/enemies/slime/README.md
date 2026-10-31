@@ -16,7 +16,7 @@ The Standard Slime V1 is a **procedural Roblox model**: Luau code builds it from
 | `art/enemies/slime/source/InstallSlimeV1.luau` | Command Bar installer that creates the three ModuleScripts above. Generated from them by `build_installer.py`; never edited by hand |
 | `art/enemies/slime/source/build_installer.py` | Regenerates the installer and verifies repository parity: byte-for-byte and SHA-256 (Python 3 standard library) |
 | `art/enemies/slime/source/SOURCE_SHA256.txt` | SHA-256 of the three modules, in `sha256sum -c` format |
-| `art/enemies/slime/review/` | Claude's internal review of `44a267b` (preserved as delivered; not a fully independent review) and the corrections report |
+| `art/enemies/slime/review/` | Claude's internal review of `44a267b` (preserved as delivered; not a fully independent review), Codex's independent review of `bbca679` (preserved as delivered) and the corrections report |
 | `art/enemies/slime/ART-001_SLIME_V1.md` | ART-001 specification, Studio tests, performance checklist and integration plan |
 | `art/enemies/slime/previews/slime-v1-offline-approximation.png` | Offline ray-traced approximation from the factory's exact part geometry. **Not a Roblox Studio screenshot**; Roblox lighting and materials will look different. Rendered before the review corrections (the gloss moved by under 0.04 studs) |
 
@@ -62,7 +62,7 @@ Two optional observations from Claude's internal review, and what the producer d
 Full beginner steps, expected output and PASS/FAIL criteria are in section 4 and 5 of [`ART-001_SLIME_V1.md`](ART-001_SLIME_V1.md). In short:
 
 1. Open the Emberbound place, make a backup (**File → Save to File As…**), and stay in Edit mode.
-2. Paste all of `art/enemies/slime/source/InstallSlimeV1.luau` (about 59 KB) into the Command Bar and press Enter. Expect three lines ending in `(embedded text installed intact)` and `[ART-001 installer] Installed 3 ModuleScripts. Nothing else was changed.`
+2. Paste all of `art/enemies/slime/source/InstallSlimeV1.luau` (about 62 KB) into the Command Bar and press Enter. Expect three lines ending in `(embedded text installed intact)` and `[ART-001 installer] Installed 3 ModuleScripts. Nothing else was changed.`
 3. Run `require(game.ServerStorage.EmberDev.SlimePreview).check()` and expect 18 `[SlimePreview] PASS` lines and `[SlimePreview] ALL 18 CHECKS PASSED`.
 4. Run `require(game.ServerStorage.EmberDev.SlimePreview).show()` to see it on a copy of the arena from the gameplay camera, and `...clear()` to remove it.
 

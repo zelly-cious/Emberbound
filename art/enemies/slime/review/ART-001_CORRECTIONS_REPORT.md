@@ -65,6 +65,8 @@ All figures come from the factory output (Luau harness) and agree with an indepe
 
 ### Low 4 — Preview camera safety: RESOLVED
 
+> **Later superseded (section 8):** after Codex's independent review, the guard requires `RunService:IsEdit()` instead of checking "not running", so paused playtests are refused too, and the simulated check covers running and paused states and camera Focus. The text below describes this round as it was.
+
 **File:** `src/ServerStorage/EmberDev/SlimePreview.luau`
 
 - `gameplayCamera()` now calls the existing `guardEditMode()` before touching the camera.
@@ -118,7 +120,7 @@ The harness lives outside the repository so the project gains no new dependency;
 
 Not run: strict-mode type checking with Roblox's definitions (no analyser with Roblox types was available). New code avoids patterns the checker rejects: an explicit `number` annotation, `IsA` refinement before reading `MeshType` and `Shape`, and typed result tables. Studio Script Analysis is still required.
 
-## 4. Installer parity verification (correction round, commit `60a0bab`; see section 7 for the current values)
+## 4. Installer parity verification (correction round, commit `60a0bab`; see section 8 for the current values)
 
 ```text
 src/ReplicatedStorage/Shared/Visuals/VisualPalette.luau      1447 bytes  c2944647d9252bdf64c6416384c93895974f863d731b9ebf9da85c85b87566b0  embedded: identical
@@ -190,7 +192,7 @@ Nothing else changed: no gameplay script, ArenaView, PR #1 or Milestone 1/2 file
 | Preview safety | 12/12 |
 | Parity | `build_installer.py`: PARITY VERIFIED; `--self-test` 8/8 rejected; `sha256sum -c` all OK |
 
-### Installer parity verification (current)
+### Installer parity verification (after the FaceAnchor change, commit `bbca679`; see section 8 for the current values)
 
 ```text
 src/ReplicatedStorage/Shared/Visuals/VisualPalette.luau      1447 bytes  c2944647d9252bdf64c6416384c93895974f863d731b9ebf9da85c85b87566b0  embedded: identical
@@ -202,3 +204,73 @@ InstallSlimeV1.luau: 59,938 bytes, reproduces byte-for-byte from the three files
 ### Status
 
 **ART-001 is frozen** until Roblox Studio testing. T1–T11, including all 18 automated preview checks and Script Analysis, remain mandatory and **none has been run**; the game owner cannot run Studio yet. PR #2 stays open and unmerged. After Milestone 2 (PR #1) is approved and merged, the art branch will be updated against the new `main`, and merging ART-001 will be considered once its own Studio testing passes.
+
+## 8. Codex independent review and scoped fix (2026-11-01)
+
+Codex reviewed `bbca679` independently (preserved exactly as delivered in [`ART-001_CODEX_REVIEW.md`](ART-001_CODEX_REVIEW.md)): **CONDITIONAL PASS**, ready for Studio validation in Edit mode, not ready to merge; 0 Critical, 0 High, 1 Medium, 3 Low. Codex confirmed the earlier corrections and the `FaceAnchor` rename. Claude verified all four new findings against the code and Roblox's documentation. Roblox's documentation states that `IsEdit()` is the inverse of `IsRunning()` except while the simulation is paused, when both return false. The producer approved lifting the freeze for this one scoped fix.
+
+### Resolutions
+
+**Medium — Edit-mode guards accepted a paused playtest: RESOLVED.**
+- `SlimePreview.luau`: `guardEditMode()` now refuses unless `RunService:IsEdit()` is true. The state is read through a module-local `playState` (live: `IsEdit`/`IsRunning`), which only `check()` swaps, briefly, for simulated states. The error names the state: `[SlimePreview] Stop the playtest first (it is running)` or `(it is paused)`.
+- Installer (`build_installer.py` template, regenerated): refuses unless `IsEdit()` is true, with the same running/paused wording. It still changes nothing when refusing.
+- `IsEdit()` has no security restriction (Security: None) and is callable from the Command Bar.
+
+**Low — preview restoration in the simulated check: RESOLVED.** Any preview already showing is parked outside Workspace (`Parent = nil`) for the duration of the simulated commands, so a command with a missing guard cannot destroy or replace it. Afterwards, every `_EmberSlimePreview` the commands created is destroyed and reported as "a preview folder was created", and the original is put back. The commands run inside `pcall`, and so does the loop around them, so `playState` and the preview are restored even if something fails unexpectedly. The test was strengthened, not weakened.
+
+**Low — camera Focus: RESOLVED.** The simulated check records CFrame, Focus and FieldOfView, reports any change ("the camera moved (CFrame, Focus or FieldOfView)"), and restores all three in every case. It now simulates **both** a running and a paused playtest, and requires all six command attempts to be refused.
+
+**Low — T11 optional: RESOLVED.** T11 is mandatory in the test table and report template of `ART-001_SLIME_V1.md`. It covers, in running **and** paused Play: the T2 and T5 preview commands and the installer; red/orange refusal lines; no preview folder; no created or changed modules or folders; no camera movement; and an unchanged place after Stop.
+
+### Files changed
+
+| File | Change |
+|---|---|
+| `src/ServerStorage/EmberDev/SlimePreview.luau` | Edit-mode guard via `playState`; simulated check covers running and paused, Focus, and preview parking and restoration |
+| `art/enemies/slime/source/build_installer.py` | installer template guard requires `IsEdit()` |
+| `art/enemies/slime/source/InstallSlimeV1.luau`, `SOURCE_SHA256.txt` | regenerated |
+| `art/enemies/slime/ART-001_SLIME_V1.md` | T11 mandatory, with running and paused steps; template; status; hashes; verification notes |
+| `art/ART-001_REVIEW_HANDOFF.md` | isolation wording; hashes; Codex instructions wording; section 13 |
+| `art/enemies/slime/README.md` | review-folder entry |
+| `art/enemies/slime/review/ART-001_CODEX_REVIEW.md` | new: Codex's review, verbatim |
+| this report | this section; parity-section pointers |
+
+Unchanged: `SlimeModelFactory.luau` and `VisualPalette.luau` (same SHA-256), so the geometry, materials, palette and `FaceAnchor` naming are unchanged; still 18 preview checks; no gameplay, ArenaView, PR #1 or Milestone 1/2 file.
+
+### Offline test results (fake engine; not Roblox Studio)
+
+The fake engine now models three Studio states as documented by Roblox: Edit (`IsEdit` true, `IsRunning` false), running (false, true) and paused (false, false). These are simulations, not Studio results.
+
+| Suite | Result |
+|---|---|
+| Luau compile | 4/4 files |
+| `check()` from repository files (Edit) | 18/18 PASS, no warnings, place unchanged |
+| Original defect on `bbca679` | Reproduced: while paused, the old preview's `gameplayCamera()` ran and moved the camera, and the old installer installed |
+| Fixed preview, running and paused | `gameplayCamera`, `show`, `lineup` and `check` each refused with the matching "(it is running)" or "(it is paused)" message; place and camera (CFrame, Focus, FieldOfView) unchanged — 10/10 |
+| Fixed preview, Edit | `gameplayCamera()` works; `check()` 18/18 |
+| Fixed installer | running and paused: refuses, "Nothing was changed.", place unchanged; Edit: installs |
+| New mutations | M4: a "not running" guard fails only the simulated check, on the paused state. M5: a Focus-only camera change is reported and Focus restored. M6: with a preview showing and `show()`'s guard removed, the check fails ("a preview folder was created"), the original preview (same folder, same slime) is still in Workspace, the camera is unchanged, and `clear()` still restores the original camera. M6b: with the real code and a preview showing, `check()` passes and the preview is untouched |
+| State suite total | 25/25 |
+| Earlier suites, rerun | FaceAnchor 12/12, installer safety 14/14, mutation and Play-mode 17/17, geometry 5/5, preview safety 12/12 |
+| Parity | PARITY VERIFIED; `--self-test` 8/8 rejected; `sha256sum -c` all OK |
+
+### Installer parity verification (current)
+
+```text
+src/ReplicatedStorage/Shared/Visuals/VisualPalette.luau      1447 bytes  c2944647d9252bdf64c6416384c93895974f863d731b9ebf9da85c85b87566b0  embedded: identical
+src/ReplicatedStorage/Shared/Visuals/SlimeModelFactory.luau 20050 bytes  5ea8b387b172d0dc83a2a2dbd2a32cb9069342c229c4ce2757f161cd2c6e6662  embedded: identical
+src/ServerStorage/EmberDev/SlimePreview.luau               35289 bytes  5383454e073399f110fcbda25cbe3cd496eaa196f63102682cd5804393a150da  embedded: identical
+InstallSlimeV1.luau: 61,762 bytes, reproduces byte-for-byte from the three files
+```
+
+### Status and remaining risks
+
+**ART-001 is frozen again** until Roblox Studio testing. T1–T11, now including mandatory running and paused T11, all 18 automated preview checks and Script Analysis, remain required, and **none has been run**.
+
+Unverified until Studio:
+- the real `IsEdit()`/`IsRunning()` values in each playtest mode and Command Bar context;
+- real `ScaleTo` versus `SpecialMesh.Scale`;
+- strict type checking with Roblox's definitions;
+- acceptance of the larger (about 62 KB) installer paste;
+- camera restoration across Command Bar entries (module caching);
+- the visual items already listed (seams, shimmer, cheek visibility).
