@@ -2,7 +2,7 @@
 
 **Game:** Tap a Monster (internal codename Emberbound)
 **Branch / PR:** `feature/art-slime-v1`, PR #2 (not merged)
-**Audited commit:** `44a267beae43938fbd960b1106c540668c3592fc` — review preserved in [`ART-001_INDEPENDENT_REVIEW.md`](ART-001_INDEPENDENT_REVIEW.md)
+**Audited commit:** `44a267beae43938fbd960b1106c540668c3592fc` — Claude's internal review, preserved in [`ART-001_INTERNAL_REVIEW.md`](ART-001_INTERNAL_REVIEW.md). Accepted by the producer as an internal review, **not a fully independent review** (the same AI implemented ART-001 and these corrections)
 **Review verdict:** CONDITIONAL PASS — 0 Critical, 0 High, 0 Medium, 4 Low
 **Date:** 2026-11-01
 
@@ -72,9 +72,9 @@ All figures come from the factory output (Luau harness) and agree with an indepe
 - **Regression check added:** `check()` item "Preview commands refuse to run during Play (simulated) and change nothing". It runs `gameplayCamera`, `show` and `lineup` under a simulated playtest and requires each to fail with "Stop the playtest first". It also requires that the camera, the saved camera and the preview folder are unchanged. If a guard ever goes missing, it undoes whatever the command did before reporting the failure.
 - Camera restoration and cleanup are unchanged: `show`/`lineup`/`gameplayCamera` followed by `clear` restores the original camera, and `clear` still works in Play. `ArenaView` and all gameplay scripts are untouched.
 
-### Optional observations: DOCUMENTED, not changed
+### Optional observations: decided by the producer
 
-Both are recorded in `art/enemies/slime/README.md` ("Optional observations"): the duplicate `Face` name (Root attachment and model folder), and the low blush/body luminance contrast (about 1.18:1). Both need a producer decision; no redesign was done.
+Originally recorded unchanged. The producer then decided them: the duplicate `Face` name was fixed by renaming the attachment to `FaceAnchor`, and the cheek contrast is deferred to Studio T7/T8 as a pending visual-quality observation. See section 7.
 
 ## 2. Files changed (relative to `44a267b`)
 
@@ -89,7 +89,7 @@ Both are recorded in `art/enemies/slime/README.md` ("Optional observations"): th
 | `art/enemies/slime/README.md` | Low 3 corrections; regeneration section; optional observations |
 | `art/ART_DIRECTION.md` | heights, Milestone 1 figures, face-detail wording |
 | `art/ART-001_REVIEW_HANDOFF.md` | inventory and hashes; corrected Phase 2 claims; section 11 |
-| `art/enemies/slime/review/ART-001_INDEPENDENT_REVIEW.md` | new: review evidence as delivered |
+| `art/enemies/slime/review/ART-001_INTERNAL_REVIEW.md` | new: review evidence as delivered (file renamed from `ART-001_INDEPENDENT_REVIEW.md` in section 7) |
 | `art/enemies/slime/review/ART-001_CORRECTIONS_REPORT.md` | new: this report |
 
 No file that existed before ART-001 is modified: nothing under `src/ServerScriptService` or `src/StarterPlayer` (ArenaView, CombatClient, CombatHud, CombatService, ServerInit), `GameConfig`, `SOURCE_HASHES.txt`, the root documents, or any Milestone 2 or PR #1 file.
@@ -118,7 +118,7 @@ The harness lives outside the repository so the project gains no new dependency;
 
 Not run: strict-mode type checking with Roblox's definitions (no analyser with Roblox types was available). New code avoids patterns the checker rejects: an explicit `number` annotation, `IsA` refinement before reading `MeshType` and `Shape`, and typed result tables. Studio Script Analysis is still required.
 
-## 4. Installer parity verification (final)
+## 4. Installer parity verification (correction round, commit `60a0bab`; see section 7 for the current values)
 
 ```text
 src/ReplicatedStorage/Shared/Visuals/VisualPalette.luau      1447 bytes  c2944647d9252bdf64c6416384c93895974f863d731b9ebf9da85c85b87566b0  embedded: identical
@@ -149,3 +149,56 @@ All of T1–T11 in `ART-001_SLIME_V1.md` section 5, with the user's results in t
 | GroundShadow sits 0.02 studs above the floor; the two smile strokes overlap | Look for shimmer or seams in T7 and T8 |
 | Offline preview image predates the gloss fix | Under 0.04 studs of change; Studio screenshots (T2, T6, T7) are the real review |
 | Merging before PR #1 | Unchanged recommendation: merge after PR #1, then rebase |
+
+## 7. Producer decisions and follow-up correction (2026-11-01)
+
+The producer reviewed this report and decided:
+
+| Decision | Outcome |
+|---|---|
+| 1. Gloss geometry | Approved as applied (−0.14 depth, 0.44 thickness); the depth-only alternative is not used |
+| 2. Duplicate `Face` name | Fix now, before integration or use as a naming standard: rename the Root attachment to `FaceAnchor`, keep the `Face` folder |
+| 3. Cheek contrast | Deferred. Palette unchanged; a pending visual-quality observation for Studio T7/T8, not a blocking defect |
+| 4. Review acceptance | Accepted as an internal review, sufficient for Studio validation; not to be described as fully independent |
+
+### FaceAnchor correction
+
+| File | Change |
+|---|---|
+| `src/ReplicatedStorage/Shared/Visuals/SlimeModelFactory.luau` | anchor `Face` → `FaceAnchor` (same position); header comment |
+| `src/ServerStorage/EmberDev/SlimePreview.luau` | the existing "Anchor attachments on Root" check expects `FaceAnchor`, requires Root to have no child named `Face`, and requires `FindFirstChild("Face", true)` to return the `Face` folder. Still 18 checks |
+| `art/enemies/slime/source/InstallSlimeV1.luau`, `SOURCE_SHA256.txt` | regenerated by `build_installer.py` |
+| `art/enemies/slime/ART-001_SLIME_V1.md` | hierarchy; frozen status; cheek-visibility observation in section 5 and the report template; review wording; hashes |
+| `art/enemies/slime/README.md` | observations replaced by the producer decisions; review wording |
+| `art/ART_DIRECTION.md` | anchor-name recommendation now `Center`, `Top`, `FaceAnchor` |
+| `art/ART-001_REVIEW_HANDOFF.md` | hashes; review wording; section 12 (decisions and freeze) |
+| `art/enemies/slime/review/ART-001_INTERNAL_REVIEW.md` | renamed from `ART-001_INDEPENDENT_REVIEW.md` (git rename, history kept); title and a classification note changed; findings unchanged |
+| this report | this section; review wording; sections 4 and "Optional observations" point here |
+
+Nothing else changed: no gameplay script, ArenaView, PR #1 or Milestone 1/2 file, no palette value, no geometry other than the attachment's name.
+
+### Test results after the correction (offline; not Roblox Studio)
+
+| Check | Result |
+|---|---|
+| Luau compile | 4/4 files |
+| `check()` from repository files | 18/18 PASS, `[SlimePreview] ALL 18 CHECKS PASSED`, no warnings, place unchanged |
+| FaceAnchor structure (scales 0.5, 1, 3) | 12/12: Root holds exactly `Center`, `Top`, `FaceAnchor`; recursive `Face` search returns the folder with its 8 parts; `FaceAnchor` position unchanged (0, 2.507, −2.932) × scale; 33 descendants |
+| Mutation tests | 17/17, including two new cases: reverting the name to `Face` fails only the anchor check (`missing attachment FaceAnchor`); leaving an extra `Face` child on Root fails with `Root still has a child named Face` |
+| Installer safety | 14/14 (fresh, refuse, replace, refusal paths); 18/18 `check()` from installed modules |
+| Geometry | 5/5, unchanged (visible height 5.619; gloss rim −0.0055; gloss cap 0.083) |
+| Preview safety | 12/12 |
+| Parity | `build_installer.py`: PARITY VERIFIED; `--self-test` 8/8 rejected; `sha256sum -c` all OK |
+
+### Installer parity verification (current)
+
+```text
+src/ReplicatedStorage/Shared/Visuals/VisualPalette.luau      1447 bytes  c2944647d9252bdf64c6416384c93895974f863d731b9ebf9da85c85b87566b0  embedded: identical
+src/ReplicatedStorage/Shared/Visuals/SlimeModelFactory.luau 20050 bytes  5ea8b387b172d0dc83a2a2dbd2a32cb9069342c229c4ce2757f161cd2c6e6662  embedded: identical
+src/ServerStorage/EmberDev/SlimePreview.luau               33691 bytes  a8715f201a4921e6e115cbc14120be8bbf53c13e1e1c2d3d3cbd7e031711f547  embedded: identical
+InstallSlimeV1.luau: 59,938 bytes, reproduces byte-for-byte from the three files
+```
+
+### Status
+
+**ART-001 is frozen** until Roblox Studio testing. T1–T11, including all 18 automated preview checks and Script Analysis, remain mandatory and **none has been run**; the game owner cannot run Studio yet. PR #2 stays open and unmerged. After Milestone 2 (PR #1) is approved and merged, the art branch will be updated against the new `main`, and merging ART-001 will be considered once its own Studio testing passes.

@@ -1,8 +1,9 @@
-# ART-001 Slime V1 — Independent Review (preserved evidence)
+# ART-001 Slime V1 — Internal Review by Claude (preserved evidence)
 
 **Game:** Tap a Monster (internal codename Emberbound)
 **Reviewed:** PR #2, branch `feature/art-slime-v1`, commit `44a267beae43938fbd960b1106c540668c3592fc` (base `main` at `730218a`)
-**Review type:** read-only code and geometry audit, 2026-11-01. No code was changed during the review, and no Roblox Studio tests were run.
+**Review type:** read-only code and geometry audit by Claude, 2026-11-01. No code was changed during the review, and no Roblox Studio tests were run.
+**Classification (producer decision, 2026-11-01):** accepted as an **internal review**, sufficient to proceed to Roblox Studio validation. It is **not a fully independent review**: the same AI (Claude) implemented ART-001 and its corrections. A separate reviewer may still be used later. Only this title, the classification and the file name (previously `ART-001_INDEPENDENT_REVIEW.md`) were changed; the findings below are unchanged.
 **Status:** this is the review as delivered. Line numbers refer to the audited commit, not to later commits. The resolution of each finding is in [`ART-001_CORRECTIONS_REPORT.md`](ART-001_CORRECTIONS_REPORT.md).
 
 ## 1. Verdict: CONDITIONAL PASS

@@ -16,7 +16,7 @@ The Standard Slime V1 is a **procedural Roblox model**: Luau code builds it from
 | `art/enemies/slime/source/InstallSlimeV1.luau` | Command Bar installer that creates the three ModuleScripts above. Generated from them by `build_installer.py`; never edited by hand |
 | `art/enemies/slime/source/build_installer.py` | Regenerates the installer and verifies repository parity: byte-for-byte and SHA-256 (Python 3 standard library) |
 | `art/enemies/slime/source/SOURCE_SHA256.txt` | SHA-256 of the three modules, in `sha256sum -c` format |
-| `art/enemies/slime/review/` | The independent review of `44a267b` (preserved as delivered) and the corrections report |
+| `art/enemies/slime/review/` | Claude's internal review of `44a267b` (preserved as delivered; not a fully independent review) and the corrections report |
 | `art/enemies/slime/ART-001_SLIME_V1.md` | ART-001 specification, Studio tests, performance checklist and integration plan |
 | `art/enemies/slime/previews/slime-v1-offline-approximation.png` | Offline ray-traced approximation from the factory's exact part geometry. **Not a Roblox Studio screenshot**; Roblox lighting and materials will look different. Rendered before the review corrections (the gloss moved by under 0.04 studs) |
 
@@ -50,12 +50,12 @@ The three modules stay under `src/` because that folder mirrors their Roblox Stu
 - Surface details are sunk just inside the curved body rather than perfectly flush. `check()` measures them: the eye rims rise up to 0.006 studs above the body surface along their lower edge (under the 0.01 tolerance; the eye geometry was deliberately left unchanged); all other rims are inside the body.
 - Strict-mode type checking with Roblox's type definitions hasn't been run; open each ModuleScript in Studio and check the Script Analysis window.
 
-### Optional observations (recorded, not changed)
+### Review observations and producer decisions (2026-11-01)
 
-From the independent review. Neither blocks the asset; both need a producer decision before anything changes.
+Two optional observations from Claude's internal review, and what the producer decided:
 
-1. **Duplicate name "Face".** `Root` has an Attachment named `Face` and the model has a Folder named `Face`. Direct paths (`slime.Face`, `slime.Root.Face`) are unambiguous, but `slime:FindFirstChild("Face", true)` returns the attachment. `ART_DIRECTION.md` recommends `Center`, `Top` and `Face` as standard anchor names, so renaming is an art-direction decision.
-2. **Blush contrast.** The Ember Orange cheeks and the Forest Green body have nearly the same luminance (contrast about 1.18:1), so they are told apart by hue alone and may be hard to see for players with red-green colour-vision deficiency. The cheeks are decorative, not gameplay information. A colour-blindness simulator check during T7 would show whether a darker or more saturated blush is worth it.
+1. **Duplicate name "Face": fixed.** `Root` had an Attachment named `Face` while the model also has a Folder named `Face`, so `slime:FindFirstChild("Face", true)` returned the attachment. The attachment is now **`FaceAnchor`**; the `Face` folder is unchanged. `check()` confirms `Root` has no child named `Face` and that a recursive search for `Face` finds the folder. Use `slime.Root.FaceAnchor` for damage numbers.
+2. **Cheek contrast: deferred, pending visual-quality observation (not a blocking defect).** The Ember Orange cheeks and the Forest Green body have nearly the same luminance (contrast about 1.18:1), so they are told apart by hue alone and may be hard to see for players with red-green colour-vision deficiency. The palette stays unchanged; cheek visibility is evaluated during Studio T7 (phone) and T8 (low graphics), as noted in `ART-001_SLIME_V1.md` section 5.
 
 ## Bringing it into Roblox Studio
 

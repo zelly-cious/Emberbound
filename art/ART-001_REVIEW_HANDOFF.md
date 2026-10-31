@@ -3,7 +3,7 @@
 **For:** ChatGPT (technical lead / QA coordinator) and Codex (read-only code reviewer).
 **Branch:** `feature/art-slime-v1`, based on `main` at `730218a`. Pull request targets `main` and must **not** be merged until the conditions in section 8 are met.
 **Prepared by:** Claude (implementation). Nothing here is a Roblox Studio result unless it says so.
-**Updated 2026-11-01:** the independent review of `44a267b` (CONDITIONAL PASS, four Low findings) has been addressed on this branch. See section 11, `enemies/slime/review/ART-001_CORRECTIONS_REPORT.md`, and the preserved review in `enemies/slime/review/ART-001_INDEPENDENT_REVIEW.md`.
+**Updated 2026-11-01:** Claude's internal review of `44a267b` (CONDITIONAL PASS, four Low findings) has been addressed on this branch, followed by the producer's decisions (section 12). See `enemies/slime/review/ART-001_CORRECTIONS_REPORT.md` and the preserved review in `enemies/slime/review/ART-001_INTERNAL_REVIEW.md`. **ART-001 is frozen until Roblox Studio testing.**
 
 ## 1. Summary
 
@@ -33,12 +33,12 @@ Both commits were pushed to GitHub as prepared, followed by a third commit that 
 | File | Role | SHA-256 |
 |---|---|---|
 | `src/ReplicatedStorage/Shared/Visuals/VisualPalette.luau` | Official palette and colour helpers | `c2944647d9252bdf64c6416384c93895974f863d731b9ebf9da85c85b87566b0` |
-| `src/ReplicatedStorage/Shared/Visuals/SlimeModelFactory.luau` | Model source (factory) | `92aabd80ff0553124fc2f74cd50dc25a74e10eb8dec62fe8809e78e11427f110` |
-| `src/ServerStorage/EmberDev/SlimePreview.luau` | Edit-mode preview and 18 automatic checks | `832c3a3892f5eea6407a48eadc69ae84f644ba705d7ee9bf4a598555ea9a8951` |
+| `src/ReplicatedStorage/Shared/Visuals/SlimeModelFactory.luau` | Model source (factory) | `5ea8b387b172d0dc83a2a2dbd2a32cb9069342c229c4ce2757f161cd2c6e6662` |
+| `src/ServerStorage/EmberDev/SlimePreview.luau` | Edit-mode preview and 18 automatic checks | `a8715f201a4921e6e115cbc14120be8bbf53c13e1e1c2d3d3cbd7e031711f547` |
 | `art/enemies/slime/source/InstallSlimeV1.luau` | Command Bar installer embedding the three modules verbatim (generated) | — |
 | `art/enemies/slime/source/build_installer.py` | Generates the installer; verifies repository parity (byte-for-byte, SHA-256) | — |
 | `art/enemies/slime/source/SOURCE_SHA256.txt` | SHA-256 record of the three modules | — |
-| `art/enemies/slime/review/ART-001_INDEPENDENT_REVIEW.md` | The independent review of `44a267b`, preserved as delivered | — |
+| `art/enemies/slime/review/ART-001_INTERNAL_REVIEW.md` | Claude's internal review of `44a267b`, preserved as delivered (not a fully independent review) | — |
 | `art/enemies/slime/review/ART-001_CORRECTIONS_REPORT.md` | Finding-by-finding resolution and test results | — |
 | `art/enemies/slime/ART-001_SLIME_V1.md` | Specification, hierarchy, Studio tests T1–T11, performance checklist, integration plan | — |
 | `art/enemies/slime/README.md` | Asset record and Roblox compatibility table | — |
@@ -149,7 +149,7 @@ Decisions and gates:
 
 ## 11. Review corrections (2026-11-01)
 
-The independent review of `44a267b` returned CONDITIONAL PASS with no Critical, High or Medium findings. All four Low findings were corrected on this branch, in new commits on top of the audited one (history not rewritten):
+Claude's internal review of `44a267b` returned CONDITIONAL PASS with no Critical, High or Medium findings. All four Low findings were corrected on this branch, in new commits on top of the audited one (history not rewritten):
 
 | Finding | Resolution |
 |---|---|
@@ -158,4 +158,15 @@ The independent review of `44a267b` returned CONDITIONAL PASS with no Critical, 
 | Low 3 — heights were bounding-box values; Milestone 1 comparison wrong | Docs now give visible height 5.62 (boxes 5.78) and the Milestone 1 slime's 6.16 / 7.2; T1 output prefix corrected; "flush" claims reworded; `check()` reports both heights |
 | Low 4 — `gameplayCamera()` had no Edit-mode guard | Now calls `guardEditMode()`. New `check()` item simulates a running playtest and confirms `gameplayCamera`, `show` and `lineup` refuse and change nothing |
 
-Optional observations (duplicate `Face` name, blush contrast) are recorded in `enemies/slime/README.md`, not changed. All results above are offline (fake engine); **no Roblox Studio test has been run**. T1–T11 in `enemies/slime/ART-001_SLIME_V1.md` section 5 are still required.
+The two optional observations were then decided by the producer (section 12). All results above are offline (fake engine); **no Roblox Studio test has been run**. T1–T11 in `enemies/slime/ART-001_SLIME_V1.md` section 5 are still required.
+
+## 12. Producer decisions and freeze (2026-11-01)
+
+| Decision | Outcome |
+|---|---|
+| 1. Gloss geometry | **Approved** as applied: `glossDepth = -0.14`, `glossSize = Vector3.new(1.9, 0.95, 0.44)`. The depth-only alternative is not used |
+| 2. Duplicate `Face` name | **Fixed:** the Root attachment `Face` is now `FaceAnchor`; the model's `Face` folder is unchanged. The existing anchor check in `check()` now also confirms Root has no `Face` child and that `FindFirstChild("Face", true)` returns the folder (still 18 checks). Installer regenerated and parity verified |
+| 3. Cheek contrast | **Deferred.** Palette unchanged. Recorded as a pending visual-quality observation (not a blocking defect), evaluated in Studio T7 and T8 |
+| 4. Review acceptance | Claude's review is accepted as an **internal review**, sufficient to proceed to Studio validation. It is not described as fully independent; a separate reviewer may still be used later. The preserved review file is now `ART-001_INTERNAL_REVIEW.md` (findings unchanged) |
+
+**ART-001 is frozen** until Roblox Studio testing. T1–T11, including all 18 automated preview checks and Script Analysis, remain mandatory, and none has been run. After Milestone 2 (PR #1) is approved and merged, this branch will be updated against the new `main`, and merging ART-001 will be considered once its own Studio testing passes.

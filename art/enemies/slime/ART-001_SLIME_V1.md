@@ -1,9 +1,9 @@
 # ART-001 — Standard Slime V1 (procedural model)
 
-**Status:** Phase 2 implemented on branch `feature/art-slime-v1` (based on `main` at `730218a`). Waiting for Phase 3 Roblox Studio test results.
+**Status:** Phase 2 implemented on branch `feature/art-slime-v1` (based on `main` at `730218a`). Review corrections and producer decisions applied. **Frozen** until Phase 3 Roblox Studio testing: no further changes until T1–T11 results are in. No Studio test has been run yet.
 
 **Document history:** written in ART-001 Phase 2 at `art/ART-001_SLIME_V1.md`. Moved to `art/enemies/slime/` during the asset handoff; only file paths and the branch name were updated. No specification was changed.
-Corrected on 2026-11-01 after the independent review of `44a267b` (four Low findings): gloss seating, installer parity tooling, height figures and the preview camera guard. See [`review/ART-001_CORRECTIONS_REPORT.md`](review/ART-001_CORRECTIONS_REPORT.md); the review itself is preserved in [`review/ART-001_INDEPENDENT_REVIEW.md`](review/ART-001_INDEPENDENT_REVIEW.md).
+Corrected on 2026-11-01 after Claude's internal review of `44a267b` (four Low findings): gloss seating, installer parity tooling, height figures and the preview camera guard. Then, by producer decision, the Root attachment `Face` was renamed `FaceAnchor`. See [`review/ART-001_CORRECTIONS_REPORT.md`](review/ART-001_CORRECTIONS_REPORT.md); the review itself is preserved in [`review/ART-001_INTERNAL_REVIEW.md`](review/ART-001_INTERNAL_REVIEW.md). It is accepted as an internal review, not a fully independent one.
 **Not integrated:** nothing in the game uses this model yet. `ArenaView` still builds the Milestone 1 slime. Milestone 2 (PR #1) is untouched.
 
 ## 1. Files
@@ -19,14 +19,14 @@ All files are new; no existing file was modified.
 | `art/enemies/slime/source/build_installer.py` | not installed | Generates the installer and verifies repository parity (Python 3, standard library only) |
 | `art/enemies/slime/source/SOURCE_SHA256.txt` | not installed | SHA-256 record of the three modules (`sha256sum` format) |
 | `art/enemies/slime/ART-001_SLIME_V1.md` | not installed | This document |
-| `art/enemies/slime/review/` | not installed | Preserved independent review and the corrections report |
+| `art/enemies/slime/review/` | not installed | Preserved internal review and the corrections report |
 
 SHA-256 of the three source files (also in `source/SOURCE_SHA256.txt`):
 
 ```text
 c2944647d9252bdf64c6416384c93895974f863d731b9ebf9da85c85b87566b0  src/ReplicatedStorage/Shared/Visuals/VisualPalette.luau
-92aabd80ff0553124fc2f74cd50dc25a74e10eb8dec62fe8809e78e11427f110  src/ReplicatedStorage/Shared/Visuals/SlimeModelFactory.luau
-832c3a3892f5eea6407a48eadc69ae84f644ba705d7ee9bf4a598555ea9a8951  src/ServerStorage/EmberDev/SlimePreview.luau
+5ea8b387b172d0dc83a2a2dbd2a32cb9069342c229c4ce2757f161cd2c6e6662  src/ReplicatedStorage/Shared/Visuals/SlimeModelFactory.luau
+a8715f201a4921e6e115cbc14120be8bbf53c13e1e1c2d3d3cbd7e031711f547  src/ServerStorage/EmberDev/SlimePreview.luau
 ```
 
 There are two separate checks:
@@ -55,7 +55,7 @@ Slime_Standard (Model, PrimaryPart = Root)
 ├─ Root (invisible Part at the pivot)
 │   ├─ Center (Attachment)  body centre, for hit bursts
 │   ├─ Top    (Attachment)  top of the body, for crowns or labels
-│   └─ Face   (Attachment)  just in front of the face, for damage numbers
+│   └─ FaceAnchor (Attachment)  just in front of the face, for damage numbers
 ├─ Ground (Folder)
 │   └─ GroundShadow
 ├─ Body (Folder)
@@ -159,6 +159,8 @@ Each Command Bar entry runs on its own, so every command below is one complete l
 
 **Special case:** if T1's `Model:ScaleTo keeps built-in meshes in step` check fails, the preview is still valid. That check only matters for the future integration (the game's hit squash uses `ScaleTo`). Report it, and the fallback is a plain-sphere body.
 
+**Pending visual-quality observation (producer decision, 2026-11-01): cheek contrast.** The Ember Orange cheeks and Forest Green body have nearly the same luminance (about 1.18:1). In T7 (phone) and T8 (Quality Level 1), note how clearly the cheeks read; a colour-blindness simulator view is a useful extra. This is **not** a PASS/FAIL criterion and not a blocking defect. The palette stays unchanged until these Studio results are reviewed.
+
 ### Collecting Output and reporting
 
 1. Click inside the Output window, press **Ctrl+A** then **Ctrl+C**, and paste into a text file.
@@ -176,6 +178,7 @@ T5 camera: PASS/FAIL
 T6 lineup: PASS/FAIL + screenshot
 T7 phone emulator: PASS/FAIL + screenshot (which device)
 T8 low graphics: PASS/FAIL
+Cheek visibility (T7/T8, observation only): clear / weak / not visible
 T9 clear: PASS/FAIL
 T10 gameplay unchanged: PASS/FAIL
 T11 (optional): PASS/FAIL
@@ -227,7 +230,7 @@ The preview folder is never saved into the place (`Archivable = false`), so it c
 
 - All three modules and the installer were compiled and run in the real Luau VM against a small fake Roblox engine: all 16 `check()` items passed, plus extra checks that face details sit on the body surface, the shines sit on the eyes, the smile strokes meet, balls are uniform, the preview manages only its own folder and camera, and the preview refuses to run during Play. The installer was tested for fresh install, refusal when already installed, and replace mode.
 - An approximate offline render from the gameplay camera was used to tune the skirt.
-- **Correction (2026-11-01):** the Phase 2 extra check above did not measure the gloss rim. The independent review found its two ends lifted up to 0.034 studs off the body; that is fixed, and `check()` now measures seating itself. The offline preview image predates this fix (the change is under 0.04 studs at scale 1).
+- **Correction (2026-11-01):** the Phase 2 extra check above did not measure the gloss rim. Claude's internal review found its two ends lifted up to 0.034 studs off the body; that is fixed, and `check()` now measures seating itself. The offline preview image predates this fix (the change is under 0.04 studs at scale 1).
 - Review corrections, offline (fake engine, not Studio): all 18 `check()` items pass from the repository files and from the regenerated installer; mutation tests confirm the two new checks fail on the original gloss values and on an unguarded `gameplayCamera()`; installer fresh, refuse and replace runs behave as before; `build_installer.py` verifies parity and rejects same-length edits. Details in `review/ART-001_CORRECTIONS_REPORT.md`.
 - **Not verifiable offline:** Roblox's own rendering and lighting, `Model:ScaleTo`'s effect on SpecialMeshes (T1 checks it in Studio), and strict-mode type checking with Roblox's type definitions (open each ModuleScript in Studio's Script Editor; the Script Analysis window should show no errors).
 
@@ -240,6 +243,6 @@ Created:
 - `src/ServerStorage/EmberDev/SlimePreview.luau`
 - `art/enemies/slime/source/InstallSlimeV1.luau`
 - `art/enemies/slime/ART-001_SLIME_V1.md`
-- Review corrections: `art/enemies/slime/source/build_installer.py`, `art/enemies/slime/source/SOURCE_SHA256.txt`, `art/enemies/slime/review/ART-001_INDEPENDENT_REVIEW.md`, `art/enemies/slime/review/ART-001_CORRECTIONS_REPORT.md`
+- Review corrections: `art/enemies/slime/source/build_installer.py`, `art/enemies/slime/source/SOURCE_SHA256.txt`, `art/enemies/slime/review/ART-001_INTERNAL_REVIEW.md`, `art/enemies/slime/review/ART-001_CORRECTIONS_REPORT.md`
 
 Modified: none of the files that existed before ART-001. Not touched: every existing file under `src/`, `SOURCE_HASHES.txt`, `README.md`, all requirement and review documents, the Milestone 2 branch and PR #1.

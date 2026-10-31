@@ -555,10 +555,17 @@ function SlimePreview.check(): boolean
 
 	run("Anchor attachments on Root", function()
 		local root = slime:FindFirstChild("Root") :: Instance
-		for _, name in { "Center", "Top", "Face" } do
+		for _, name in { "Center", "Top", "FaceAnchor" } do
 			local attachment = root:FindFirstChild(name)
 			expect(attachment ~= nil and attachment:IsA("Attachment"), `missing attachment {name}`)
 		end
+		-- "Face" names only the face Folder, so a recursive search cannot land on an attachment.
+		expect(root:FindFirstChild("Face") == nil, "Root still has a child named Face")
+		local faceFolder = slime:FindFirstChild("Face")
+		expect(
+			faceFolder ~= nil and slime:FindFirstChild("Face", true) == faceFolder,
+			"FindFirstChild(\"Face\", true) does not return the Face folder"
+		)
 		return nil
 	end)
 

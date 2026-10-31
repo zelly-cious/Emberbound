@@ -93,7 +93,7 @@ ART_SOURCES["SlimeModelFactory"] = [============[
 	    convention): EyeRight sits at +X and appears on the viewer's left.
 	  - Hierarchy:
 	      Slime_<Variant> (Model, PrimaryPart = Root)
-	      |- Root (invisible Part) with Attachments Center, Top and Face
+	      |- Root (invisible Part) with Attachments Center, Top and FaceAnchor
 	      |- Ground (Folder): GroundShadow
 	      |- Body (Folder):   Skirt, Core, Gloss, Sparkle
 	      |- Face (Folder):   EyeRight, EyeShineRight, EyeLeft, EyeShineLeft,
@@ -474,7 +474,7 @@ local function buildLayout(variant: VariantSpec): ({ PartSpec }, { AnchorSpec })
 	local anchors: { AnchorSpec } = {
 		{ name = "Center", position = Vector3.new(0, body.centerY, 0) },
 		{ name = "Top", position = Vector3.new(0, body.centerY + body.size.Y / 2, 0) },
-		{ name = "Face", position = faceFrame.Position },
+		{ name = "FaceAnchor", position = faceFrame.Position }, -- not "Face": that is the face Folder
 	}
 
 	return specs, anchors
@@ -1254,10 +1254,17 @@ function SlimePreview.check(): boolean
 
 	run("Anchor attachments on Root", function()
 		local root = slime:FindFirstChild("Root") :: Instance
-		for _, name in { "Center", "Top", "Face" } do
+		for _, name in { "Center", "Top", "FaceAnchor" } do
 			local attachment = root:FindFirstChild(name)
 			expect(attachment ~= nil and attachment:IsA("Attachment"), `missing attachment {name}`)
 		end
+		-- "Face" names only the face Folder, so a recursive search cannot land on an attachment.
+		expect(root:FindFirstChild("Face") == nil, "Root still has a child named Face")
+		local faceFolder = slime:FindFirstChild("Face")
+		expect(
+			faceFolder ~= nil and slime:FindFirstChild("Face", true) == faceFolder,
+			"FindFirstChild(\"Face\", true) does not return the Face folder"
+		)
 		return nil
 	end)
 
@@ -1588,8 +1595,8 @@ return table.freeze(SlimePreview)
 
 local EXPECTED_LENGTHS = {
 	VisualPalette = 1447,
-	SlimeModelFactory = 19999,
-	SlimePreview = 33304,
+	SlimeModelFactory = 20050,
+	SlimePreview = 33691,
 }
 
 (function()

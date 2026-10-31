@@ -24,7 +24,7 @@
 	    convention): EyeRight sits at +X and appears on the viewer's left.
 	  - Hierarchy:
 	      Slime_<Variant> (Model, PrimaryPart = Root)
-	      |- Root (invisible Part) with Attachments Center, Top and Face
+	      |- Root (invisible Part) with Attachments Center, Top and FaceAnchor
 	      |- Ground (Folder): GroundShadow
 	      |- Body (Folder):   Skirt, Core, Gloss, Sparkle
 	      |- Face (Folder):   EyeRight, EyeShineRight, EyeLeft, EyeShineLeft,
@@ -405,7 +405,7 @@ local function buildLayout(variant: VariantSpec): ({ PartSpec }, { AnchorSpec })
 	local anchors: { AnchorSpec } = {
 		{ name = "Center", position = Vector3.new(0, body.centerY, 0) },
 		{ name = "Top", position = Vector3.new(0, body.centerY + body.size.Y / 2, 0) },
-		{ name = "Face", position = faceFrame.Position },
+		{ name = "FaceAnchor", position = faceFrame.Position }, -- not "Face": that is the face Folder
 	}
 
 	return specs, anchors

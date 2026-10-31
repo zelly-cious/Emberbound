@@ -89,7 +89,7 @@ The "typical use" column is a **[Recommendation]**; the six colours themselves a
 
 - **[Existing game]** Gameplay camera (ArenaView): 18 studs in front of and 5.4 studs above the enemy's ground point, aimed 3.4 studs above it, field of view 50. The Milestone 1 slime is 6 studs wide at the body (7.2 at its puddle) and about 6.2 studs tall to its leaf tip (5.2 to the top of the body).
 - **[Implemented, review pending]** Slime V1 contract: pivot at the ground point under the body centre; front faces local −Z; "Right"/"Left" part names are the creature's own sides; built at scale 1 and scalable from 0.1 to 10 with identical proportions; parts may dip 0.35 studs × scale below the pivot for a flat contact edge.
-- **[Recommendation]** Use the same contract for every enemy: ground-point pivot, front on −Z, standard enemy footprint about 6–8 studs wide at scale 1, bosses by scale rather than separate models, and attachments named `Center`, `Top` and `Face` for effects.
+- **[Recommendation]** Use the same contract for every enemy: ground-point pivot, front on −Z, standard enemy footprint about 6–8 studs wide at scale 1, bosses by scale rather than separate models, and attachments named `Center`, `Top` and `FaceAnchor` for effects. Don't name an attachment after a model folder: the slime's face attachment was renamed from `Face` to `FaceAnchor` (producer decision, 2026-11-01) so it no longer shares a name with its `Face` folder.
 
 ## 8. Mobile performance
 
