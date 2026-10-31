@@ -102,7 +102,9 @@ Server → one client: CombatUpdate, CurrencyUpdate, UpgradeUpdate (FireClient o
 | small | `e == 0` and `0 <= m < 2^53` | m is the exact double, so early-game arithmetic is bit-identical to Milestone 1 |
 | large | `1 <= m < 10`, integer `15 <= e <= 2^53 − 1`, value ≥ 2^53 | Range far beyond 10^308 (up to about 10^(9×10^15)) |
 
-Each value has one representation, so equality and canonical strings are stable. This intentionally differs from the roadmap's "1 ≤ m < 10 for every value" to keep sub-2^53 values exact.
+Each value has one representation, so equality and canonical strings are stable. This intentionally differs from the roadmap's "1 ≤ m < 10 for every value" so that small values are stored as exact doubles and early-game arithmetic matches Milestone 1.
+
+**Precision contract (producer decision, 1 Nov 2026; full text in `M2_REQUIREMENTS.md`).** BigNum is bounded and finite-precision. Exact: Milestone 1's formulas and the tested early-game integer arithmetic. Approximate: large values (about 16–17 significant digits), absorption of very small operands, and cancellation after operations involving large approximate values, even when the final result is below 2^53. Not promised: universal exactness below 2^53, unlimited range, or universally correctly rounded results. Transaction guarantees (server authority, non-negative Gold, replay protection, exactly-once rewards) hold at every magnitude and do not depend on numerical precision.
 
 **Canonical text** (saving and network): `string.format("%.17g", m)` plus `"e<exponent>"` for large values, e.g. `"13"`, `"0.5"`, `"1.5e400"`. `parse(toString(x)) == x` for every valid x.
 
@@ -115,15 +117,15 @@ Each value has one representation, so equality and canonical strings are stable.
 | `isValid(v)` | Full invariant check; use on any value from outside the module |
 | `compare`, `eq`, `lt`, `lte`, `gt`, `gte`, `isZero`, `max`, `min` | Exponent first, then mantissa |
 | `add(a, b)` | Exact while both small and the sum < 2^53; operands more than 17 orders of magnitude apart return the larger |
-| `sub(a, b)` | **Saturating**: returns zero when b ≥ a. When a < 10^23 it is one correctly rounded double subtraction, so results below 2^53 are exact (audit F1) |
+| `sub(a, b)` | **Saturating**: returns zero when b ≥ a. When a < 10^23 it is one correctly rounded double subtraction of the stored operands, so a result below 2^53 is exact **when the operands themselves are exact** (audit F1). It cannot recover precision already lost: with operands ≥ 10^23, or operands that are rounded results of large operations, a result below 2^53 can be approximate (`(1e23 + 12345) − 1e23` returns 0) |
 | `trySub(a, b)` | nil when b > a (the "spend only if affordable" primitive) |
 | `mul`, `mulNumber`, `div` | `div` errors on zero |
-| `ratio(a, b)` | Plain number for display (health bar); may return `math.huge` |
+| `ratio(a, b)` | Plain number for display (health bar); may return `math.huge`. **R2-2 (deferred for M2 only):** overflows or underflows prematurely at extreme magnitudes (exponent gap above 308 returns `math.huge`; true ratios around 9e-324 return 0). Allowed only for the clamped, cosmetic health bar |
 | `floor`, `log10`, `toNumber` | `toNumber` returns `math.huge` above ~1.8e308; display only |
-| `toString(v)` / `parse(text)` | Canonical text; `parse` never errors and returns nil for non-strings, empty or > 64 chars, signs, `inf`/`nan`, hex, or exponents beyond 2^53 − 1, including exponents that only overflow after normalization such as `"10e9007199254740991"` (audit F2) |
+| `toString(v)` / `parse(text)` | Canonical text; `parse` never errors and returns nil for non-strings, empty or > 64 chars, signs, `inf`/`nan`, hex, or exponents beyond 2^53 − 1, including exponents that only overflow after normalization such as `"10e9007199254740991"` (audit F2). **R2-1 (deferred for M2 only):** long mantissas are read to double precision, so an out-of-range decimal can round into range and be accepted: `"1"` + 23 zeros + `"e9007199254740969"` (= 10^(2^53)) parses as `9.9999999999999982e9007199254740991`. `parse` followed by `isValid` does not prove the original decimal was in range; fix before any untrusted input reaches `parse` |
 | `format(v)` | `999`, `1.23K` … `999.99Dc`, then `1.23e456` |
 
-Precision is about 17 significant digits; amounts smaller than about 10^-17 of the other operand are absorbed by `add`/`sub` (e.g. `1e20 − 5 = 1e20`). Subnormal doubles down to 5e-324 are accepted and work in every operation (audit F4).
+Precision is about 16–17 significant digits; amounts smaller than about 10^-17 of the other operand are absorbed by `add`/`sub` (e.g. `1e20 − 5 = 1e20`). Subnormal doubles down to 5e-324 are accepted and no longer raise errors in `add`, `sub`, `mul`, `div`, comparisons and the text round trip that the audit F4 tests and probes cover; this is not a claim about every operation (`ratio` can underflow prematurely, R2-2). *(Superseded wording, 1 Nov 2026: "work in every operation".)*
 
 ## 5. Gold acquisition and spending
 
@@ -211,6 +213,8 @@ Mark each item confirmed-by-source, needs-Studio-test, or defect.
 
 **Not performed during this handoff.** Run in Studio with the place built from `src/` and the six RemoteEvents created. Use *Test → Clients and Servers* (2 players) for S6.
 
+The full beginner procedure, with source-parity verification against `SOURCE_HASHES.txt` (round 3, current) and a results template, is `M2_STUDIO_REGRESSION_GUIDE.md` and `review/M2_STUDIO_QA_RESULTS_TEMPLATE.md`. The S-numbered list below is the short summary. No Studio test has been run yet.
+
 | # | Test | Expected |
 |---|---|---|
 | S0 | Press Play; read Output | `[Tests] ALL PASSED (61 tests)` with 7 suites listed; no red errors; no `Missing RemoteEvent` errors |
@@ -242,5 +246,7 @@ Mark each item confirmed-by-source, needs-Studio-test, or defect.
 - **Test modules ship in ServerScriptService** but only run in Studio.
 - **Stale comments:** `ProgressionConfig` and `CurrencyService` headers mention "earned tickets, premium currency" (now Gems and Crowns).
 - **Strict-mode type note (resolved in e4b0108, audit F5):** `BigNum.make` now freezes in place and returns the typed reference, so strict analysis is clean under both solvers. The exported type keeps writable fields because the old solver rejects `read` fields; immutability is enforced at runtime.
-- **Precision above 2^53 (observation):** `add` still uses scientific form; about 1 in 3 sums in [2^53, 10^16) is one double (2) away from the correctly rounded value. `sub` is correctly rounded below 10^23.
+- **Precision above 2^53 (observation):** `add` still uses scientific form; about 1 in 3 sums in [2^53, 10^16) is one double (2) away from the correctly rounded value. `sub` is correctly rounded below 10^23. Both are within the approved bounded precision contract (`M2_REQUIREMENTS.md`).
+- **R2-1 parser limitation (conditionally deferred, M2 only):** see `M2_REQUIREMENTS.md` and `DECISIONS.md` decision 9. Must be fixed and tested before untrusted profile, import or client numerical input can reach `BigNum.parse` (including M3 persistence if it adds such a path).
+- **R2-2 ratio limitation (conditionally deferred, M2 only):** see `DECISIONS.md` decision 10. Valid only while `ratio` stays cosmetic (the clamped health bar), HP stays bounded by max HP, zero max HP is handled and no authoritative calculation uses it.
 - **Out of scope:** heroes, DPS, gacha, Gems, Crowns, equipment, trading, premium purchases, PolicyService, bosses, prestige. See `DECISIONS.md`.

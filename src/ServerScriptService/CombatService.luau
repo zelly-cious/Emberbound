@@ -11,7 +11,7 @@
 	  - sends authoritative updates only to the player they belong to
 
 	Milestone 2 changes:
-	  - HP and damage are BigNums (exact below 2^53, unlimited above)
+	  - HP and damage are BigNums (finite precision: tested early-game values exact, large values approximate)
 	  - the enemy rules live in CombatRules (pure, unit-tested)
 	  - Gold lives in CurrencyService; a defeat calls CurrencyService.Grant
 	  - SetTapDamage lets UpgradeService change tap damage

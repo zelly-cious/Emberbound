@@ -5,7 +5,7 @@
 | Audit | *Emberbound — Milestone 2 Independent Audit*, 31 Oct 2026, verdict **FAIL** (2 Medium, 4 Low, no Critical). Copy: `review/audits/Emberbound_M2_Independent_Audit.pdf` |
 | Audited | implementation `024cd68838d6c34633a00e7eadcb320c251186f0`, PR head `eb5a3511d932de5c1860852c0f47dfa8911912a5` |
 | **Corrections commit (re-review this)** | `e4b01088b953acb7f5d31b77cbf4e3f5b5e8adcf` on `feature/m2-tap-upgrades-bignum` (PR [#1](https://github.com/zelly-cious/Emberbound/pull/1)) |
-| Later commits | Documentation and `review/` tooling only: `git diff e4b0108 HEAD -- src` is empty |
+| Later commits | Documentation and `review/` tooling only: `git diff e4b0108 HEAD -- src` is empty *(superseded 1 Nov 2026: one producer-authorized comment line in `CombatService.luau` has since changed; see section "Round 2 re-review outcome" below)* |
 | Round 1 evidence | Unchanged: `review/M2_CHECK_RESULTS.md` (results for `024cd68` / `eb5a351`) |
 
 **Roblox Studio was not used.** Everything below ran in the Luau CLI 0.745 with the offline harness's fake engine, plus Selene 0.32.0 and `luau-analyze` 0.745.
@@ -21,11 +21,19 @@
 | F5 | Low | **Fixed (diagnostic)** — see tradeoff | `make` freezes the table in place and returns the typed reference, which removes the strict-mode error under both solvers. The exported type keeps plain `m`/`e` fields. |
 | F6 | Low | **Fixed** | `expectNear` rejects NaN operands and NaN, negative or infinite tolerances; equal infinities still pass; opposite infinities (NaN difference) fail. |
 
+> **Superseding notes (1 Nov 2026), added after Codex's round 2 re-review; the table above is kept as written.** F1–F6 are closed **for their audited cases**. Three statements were broader than the code guarantees:
+> - F1: "a result below 2^53 is exact" holds when the operands are exact and the larger is below 10^23. It is not universal: cancellation after operations involving large approximate values can be approximate below 2^53 (`(1e23 + 12345) − 1e23` returns 0).
+> - F2: `parse` never raises and rejects exponents beyond 2^53 − 1, but it does not reject every mathematically out-of-range decimal. That is limitation **R2-1**, separately and conditionally deferred.
+> - F4: subnormal inputs are fixed for the operations the tests and probes cover (`add`, `sub`, `mul`, `div`, comparisons, text). `ratio` can still underflow or overflow prematurely; that is limitation **R2-2**, separately and conditionally deferred.
+>
+> The approved contract is the bounded precision contract in `M2_REQUIREMENTS.md` (`DECISIONS.md` 8–10).
+
 ### Tradeoffs to review
 
 - **F5 — why not `read` fields.** Declaring `{ read m: number, read e: number }` is clean under the new solver but the old solver rejects the syntax (`read keyword is illegal here`) and then reports ~70 errors on every field access. Studio may run either solver, so the declared type stays writable and immutability is enforced at runtime by `table.freeze` (covered by the existing "values are immutable" test). Switch to `read` fields once the project standardizes on the new solver.
 - **F1 — scope.** The native path applies to every subtraction with the larger operand below 10^23, not only results below 2^53. In the differential probe (section 11) 33 of 400 subtractions now differ from the audited BigNum, every one equal to the correctly rounded double subtraction; all other operations (3 967 of 4 000) are bit-identical. Before the fix about 35 % of subtractions with results in [2^53, 10^16) were one double (2) away from the correctly rounded value; now none are.
 - **F2 — long mantissas.** Mantissas longer than ~16 digits are read to double precision, as `tonumber` does, so `"1" .. 23 zeros .. "e9007199254740968"` parses as 9.999…e9007199254740990 rather than being rejected as 10^(2^53). Canonical text never has this form.
+  > **Correction (1 Nov 2026):** this example is wrong. 10^23 × 10^9007199254740968 = 10^9007199254740991 = 10^(2^53 − 1), which is **in range**, so accepting it is correct. The out-of-range case is exponent **9007199254740969**: `"1"` + 23 zeros + `"e9007199254740969"` = 10^(2^53), above the maximum, yet it parses as `9.9999999999999982e9007199254740991` and `isValid` returns true. Verified by running the repository's `BigNum.luau` in the Luau VM. This is limitation **R2-1**.
 
 ## Files changed in `e4b0108`
 
@@ -123,7 +131,7 @@ Probe output for the new sections:
 
 ## Unresolved items and observations
 
-- **None of F1–F6 is unresolved.** F5 is resolved as a diagnostic; the read-only type annotation is deliberately deferred (see tradeoff).
+- **None of F1–F6 is unresolved.** F5 is resolved as a diagnostic; the read-only type annotation is deliberately deferred (see tradeoff). *(1 Nov 2026: "resolved" means resolved for the audited cases; R2-1 and R2-2 are separate, conditionally deferred limitations.)*
 - **Observation (not an audit finding): `add` above 2^53.** `add` still uses scientific form; about 35 % of sums landing in [2^53, 10^16) are one double (2) from the correctly rounded value. This is within BigNum's documented ~16-digit precision and was left unchanged to keep the correction minimal. The same native-path technique could be applied if the reviewer considers it necessary.
 - **Observation: cancellation above 10^23.** For operands ≥ 10^23, `sub` keeps the scientific path, so a result that falls below 2^53 can be fractional. It needs a balance ≥ 10^23 and a cost within 9×10^15 of it (relative 10^-7).
 - Offline-harness limits are unchanged: remotes run synchronously, client scripts are not executed, `Random` is a stand-in, and the Luau CLI's math library is not the Roblox server's.
@@ -131,3 +139,66 @@ Probe output for the new sections:
 ## Ready for re-review?
 
 **Yes, for an independent Codex re-review** of `e4b0108` (PR #1 head includes it). This is not a Milestone 2 approval: the re-review, Roblox Studio regression testing (`M2_REVIEW_GUIDE.md` §9, now expecting `ALL PASSED (61 tests)`), and Studio source-parity verification against `SOURCE_HASHES.txt` are still required. PR #1 remains unmerged.
+
+## Round 2 re-review outcome and producer decisions (added 1 Nov 2026)
+
+Everything above is the round 2 report as submitted for re-review, kept for the record apart from the clearly marked superseding notes.
+
+### Final Codex assessment
+
+Source: Codex's round 2 re-review of PR head `09be466c6c8844d025b25902a7f26338cad5e686`, as summarized in the producer's "Milestone 2 Final Review Decisions" message of 1 Nov 2026. The full Codex report text is not in this repository; the points below are exactly those relayed.
+
+- Verdict: **CONDITIONAL PASS**.
+- The original findings F1–F6 have been addressed for their audited cases.
+- No additional gameplay-logic change is required under the proposed bounded precision contract and conditional deferrals.
+- Codex independently reproduced that `BigNum.parse` can accept an originally out-of-range decimal after numerical rounding (**R2-1**), and identified that `BigNum.ratio` can overflow or underflow prematurely at extreme magnitudes (**R2-2**).
+- PR #1 can proceed to Roblox Studio QA once the producer decisions are formally recorded and the QA expectations aligned. Do not merge.
+
+### Producer decisions (recorded in `DECISIONS.md` 8–10 and `M2_REQUIREMENTS.md`)
+
+| # | Decision | Conditions |
+|---|---|---|
+| 1 | Bounded finite-precision BigNum contract: **approved** | Exact tested early-game integer arithmetic, Milestone 1 formulas and progression, server authority, non-negative Gold, replay protection and exactly-once rewards are preserved. Rounding, absorption and approximate cancellation at large magnitudes are accepted. No promise of universal exactness below 2^53, unlimited range or universally correctly rounded results |
+| 2 | R2-1 parser limitation: **conditionally deferred, M2 only** | Valid while production parsing is limited to client-side decoding of server-generated strings. Fix and test before any untrusted profile, import, client or other numerical input can reach `parse`, including M3 persistence if it introduces such a path |
+| 3 | R2-2 ratio limitation: **conditionally deferred, M2 only** | Valid while the result is cosmetic, HP stays bounded by max HP, zero max HP is handled, and no authoritative calculation relies on it |
+
+Both conditions hold in this code (confirmed by source): outside `Tests`, `BigNum.parse` is called only in `CombatClient.luau` on server-sent strings, and `BigNum.ratio` only in `CombatHud.luau:297`, inside a zero-max-HP check and clamped to 0…1.
+
+### Verification of the R2-1 example and the precision contract (offline, Luau VM; not Studio)
+
+```text
+"1"+23 zeros+"e9007199254740968" (= 10^(2^53-1))  -> accepted  m=9.9999999999999982 e=9007199254740990  (in range: correct)
+"1"+23 zeros+"e9007199254740969" (= 10^(2^53))    -> accepted  m=9.9999999999999982 e=9007199254740991  isValid=true  (R2-1)
+"1e9007199254740992", "10e9007199254740991"       -> nil (rejected)
+(1e23 + 12345) - 1e23                             -> 0      (true 12345: approximate cancellation below 2^53)
+1e20 - 5, 1e20 + 5                                -> 1e20   (absorption)
+ratio(1.1e609, 1e300)                             -> inf    (true 1.1e308: premature overflow, R2-2)
+ratio(9e100, 1e424)                               -> 0      (true about 9e-324: premature underflow, R2-2)
+```
+
+### Comment-only source correction
+
+The producer authorized correcting one misleading comment. No executable change:
+
+```diff
+--- a/src/ServerScriptService/CombatService.luau   (09be466)
++++ b/src/ServerScriptService/CombatService.luau
+@@ -14 +14 @@
+-	  - HP and damage are BigNums (exact below 2^53, unlimited above)
++	  - HP and damage are BigNums (finite precision: tested early-game values exact, large values approximate)
+```
+
+- **Runtime behaviour is unchanged.** Both versions compile to byte-identical Luau bytecode (4,683 bytes each, compiled with the Luau 0.663 compiler); the line count is unchanged (235).
+- `SOURCE_HASHES.txt` has a new **round 3 (current)** manifest. Only `CombatService.luau` differs from round 2: new SHA-256 `60988bb1184f298c4567fa1840e6f11687b7ad3ddcb469ab108980c999a3b168`, 7,497 bytes. The round 2 and round 1 manifests are kept as historical records.
+- The Studio QA guide's parity values for `CombatService` are updated to match (7,497 bytes, 235 lines, Adler-32 935340211).
+
+### Offline re-run after the decisions (Luau VM with the repository's fake engine; not Studio)
+
+- Unit tests via the real `TestRunner`: **61 / 61 pass**, 7 suites.
+- Review probes: **75 / 75 pass** (54 original + 21 correction).
+
+These match the round 2 results; no Roblox Studio test has been run.
+
+### Status
+
+Milestone 2 is **frozen** until Roblox Studio QA (`M2_STUDIO_REGRESSION_GUIDE.md`). PR #1 remains open and unmerged. Milestone 2.1 has not started.

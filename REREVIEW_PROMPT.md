@@ -1,5 +1,13 @@
 # CODEX TASK — EMBERBOUND MILESTONE 2 RE-REVIEW (ROUND 2)
 
+> **Superseding note (1 Nov 2026) — historical prompt, kept unchanged below.** This round 2 re-review has been completed: Codex returned **CONDITIONAL PASS** (source: Codex's round 2 re-review of PR head `09be466`, as summarized in the producer's "Milestone 2 Final Review Decisions" message of 1 Nov 2026. The full Codex report text is not in this repository). Three verification items below were worded more broadly than the approved contract and must not be read as guarantees:
+> - Item 1 ("results below 2^53 are exact"): exact only when the operands are exact and the larger is below 10^23. Cancellation after operations involving large approximate values can be approximate even below 2^53.
+> - Item 2 ("returns nil … for every … overflowing input"): `parse` never raises, but limitation **R2-1** means a long-mantissa decimal that is mathematically out of range can round into range and be accepted (e.g. `"1"` + 23 zeros + `"e9007199254740969"`).
+> - Item 4 ("subnormal inputs … in every BigNum operation"): covered for `add`, `sub`, `mul`, `div`, comparisons and the text round trip; `ratio` can underflow or overflow prematurely (limitation **R2-2**).
+>
+> The current contract is the bounded precision contract in `M2_REQUIREMENTS.md`; R2-1 and R2-2 are conditionally deferred for M2 only (`DECISIONS.md` decisions 8–10).
+
+
 Act as the same independent senior Roblox/Luau engineer and game-security reviewer who audited Milestone 2. Claude produced the corrections. You are the reviewer, not the implementer.
 
 Review PR [zelly-cious/Emberbound#1](https://github.com/zelly-cious/Emberbound/pull/1), corrections commit `e4b01088b953acb7f5d31b77cbf4e3f5b5e8adcf`, against the audited commit `024cd68838d6c34633a00e7eadcb320c251186f0`.
