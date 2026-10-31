@@ -25,7 +25,7 @@ Claude prepared the content as two commits on top of `main`:
 1. `ART-001: procedural Standard Slime V1 factory and Studio preview` — the Phase 2 implementation exactly as delivered (originally on a local `art/slime-v1` branch that was never pushed).
 2. `ART-001: art directory, art direction and review handoff` — moves the ART-001 document and installer into `art/enemies/slime/` (path and branch references updated only), and adds `ART_DIRECTION.md`, the slime README, the offline preview image and this handoff.
 
-Claude's session could not push to GitHub, so the files may have been uploaded through GitHub's web interface instead. In that case the commit history shows upload commits, but the file contents are the same. Check them against the SHA-256 values in section 4.
+Both commits were pushed to GitHub as prepared, followed by a third commit that corrects this section. File contents can be checked against the SHA-256 values in section 4.
 
 ## 4. Verified file inventory
 
