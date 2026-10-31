@@ -1,6 +1,8 @@
 # ART-001 — Standard Slime V1 (procedural model)
 
-**Status:** Phase 2 implemented on branch `art/slime-v1` (based on `main` at `730218a`). Waiting for Phase 3 Roblox Studio test results.
+**Status:** Phase 2 implemented on branch `feature/art-slime-v1` (based on `main` at `730218a`). Waiting for Phase 3 Roblox Studio test results.
+
+**Document history:** written in ART-001 Phase 2 at `art/ART-001_SLIME_V1.md`. Moved to `art/enemies/slime/` during the asset handoff; only file paths and the branch name were updated. No specification was changed.
 **Not integrated:** nothing in the game uses this model yet. `ArenaView` still builds the Milestone 1 slime. Milestone 2 (PR #1) is untouched.
 
 ## 1. Files
@@ -12,8 +14,8 @@ All files are new; no existing file was modified.
 | `src/ReplicatedStorage/Shared/Visuals/VisualPalette.luau` | ReplicatedStorage > Shared > Visuals > VisualPalette (ModuleScript) | Official palette and colour helpers |
 | `src/ReplicatedStorage/Shared/Visuals/SlimeModelFactory.luau` | ReplicatedStorage > Shared > Visuals > SlimeModelFactory (ModuleScript) | Builds slime models |
 | `src/ServerStorage/EmberDev/SlimePreview.luau` | ServerStorage > EmberDev > SlimePreview (ModuleScript) | Edit-mode preview and self-check |
-| `art/InstallSlimeV1.luau` | not installed; pasted into the Command Bar | Creates the three ModuleScripts above |
-| `art/ART-001_SLIME_V1.md` | not installed | This document |
+| `art/enemies/slime/source/InstallSlimeV1.luau` | not installed; pasted into the Command Bar | Creates the three ModuleScripts above |
+| `art/enemies/slime/ART-001_SLIME_V1.md` | not installed | This document |
 
 SHA-256 of the three source files (source parity):
 
@@ -96,7 +98,7 @@ Slime_Standard (Model, PrimaryPart = Root)
 
 ### Method A: installer (recommended)
 
-1. Open `art/InstallSlimeV1.luau` in a plain text editor such as Notepad. Press **Ctrl+A**, then **Ctrl+C**.
+1. Open `art/enemies/slime/source/InstallSlimeV1.luau` in a plain text editor such as Notepad. Press **Ctrl+A**, then **Ctrl+C**.
 2. Click inside the Studio Command Bar, press **Ctrl+V**, then **Enter**.
 3. **PASS:** the Output shows three lines ending in `(matches)` and then `Installed 3 ModuleScripts. Nothing else was changed.`
    **FAIL:** any orange warning or red error. Copy the Output and report it.
@@ -176,7 +178,7 @@ Look and feel notes: (anything to tune: colours, gloss size, cheek strength, spr
 
 Only after the Phase 3 results are accepted **and** PR #1 (Milestone 2) is approved and merged:
 
-1. Rebase `art/slime-v1` onto the new `main`. Only new files are involved, so no conflicts are expected.
+1. Rebase `feature/art-slime-v1` onto the new `main`. Only new files are involved, so no conflicts are expected.
 2. Make the integration a separate, reviewable change on its own branch, touching only `ArenaView.luau`:
    - `buildSlimeModel` returns `SlimeModelFactory.create({ name = "Enemy" })` and `SlimeModelFactory.getVisualParts(model)`, pivoted with the same `basePivot`. `ShowEnemy`, `PlayHit`, timings, the `Highlight` flash and the `ScaleTo` squash stay as they are.
    - Move the defeat burst to the model's `Center` attachment and take the burst colour from the palette instead of the hard-coded Milestone 1 green.
@@ -208,7 +210,7 @@ Created:
 - `src/ReplicatedStorage/Shared/Visuals/VisualPalette.luau`
 - `src/ReplicatedStorage/Shared/Visuals/SlimeModelFactory.luau`
 - `src/ServerStorage/EmberDev/SlimePreview.luau`
-- `art/InstallSlimeV1.luau`
-- `art/ART-001_SLIME_V1.md`
+- `art/enemies/slime/source/InstallSlimeV1.luau`
+- `art/enemies/slime/ART-001_SLIME_V1.md`
 
 Modified: none. Not touched: every existing file under `src/`, `SOURCE_HASHES.txt`, `README.md`, all requirement and review documents, the Milestone 2 branch and PR #1.
