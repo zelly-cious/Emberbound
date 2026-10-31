@@ -62,7 +62,7 @@ The "typical use" column is a **[Recommendation]**; the six colours themselves a
 
 - **[Established]** Rounded, slightly flattened body; strong silhouette at the gameplay camera distance; simple, clean geometry; no unnecessary decoration.
 - **[Approved in ART-001]** Slime silhouette: a dome-shaped body on a softer, darker skirt, plus a small leaf sprout on top. The sprout keeps the Milestone 1 "Forest Slime" read and is the slot that variants swap (flame wisp, ice shard, horns, crown).
-- **[Implemented, review pending]** Body ellipsoid 6.2 × 4.6 × 5.8 studs (height about 0.74 of width) on a 6.7 × 1.3 × 6.1 skirt; total height about 5.8 studs.
+- **[Implemented, review pending]** Body ellipsoid 6.2 × 4.6 × 5.8 studs (height about 0.74 of width) on a 6.7 × 1.3 × 6.1 skirt; visible height about 5.6 studs to the leaf tip (5.62; the parts' bounding boxes reach 5.78).
 - **[Recommendation]** For every creature, design the silhouette first: it should be identifiable as a solid dark shape against the arena backdrop. Prefer one dominant mass, one secondary mass and at most one small accent (for the slime: body, skirt, sprout). Avoid thin protrusions that disappear on a phone screen.
 - **[Recommendation]** Keep enemy designs original. Avoid the recognisable traits of well-known slimes from other franchises (teardrop tip, wide tongue grin, cube body).
 
@@ -76,7 +76,7 @@ The "typical use" column is a **[Recommendation]**; the six colours themselves a
 
 - **[Established]** Two expressive, dark eyes facing the player; a small, friendly mouth; a recognisable face at gameplay distance.
 - **[Approved in ART-001]** Ember Orange blush cheeks.
-- **[Implemented, review pending]** Tall Shadow Navy oval eyes (0.95 × 1.35 studs) with one white shine each. The shines sit on the same side as the body gloss so the light direction is consistent. A two-stroke smile and oval cheeks complete the face. All face details sit on the body surface and follow its curve.
+- **[Implemented, review pending]** Tall Shadow Navy oval eyes (0.95 × 1.35 studs) with one white shine each. The shines sit on the same side as the body gloss so the light direction is consistent. A two-stroke smile and oval cheeks complete the face. Each face detail is turned to follow the body's curve with its centre sunk just inside the surface, so only a cap shows; on a curved body this is close to flush, not exact, and the preview's automatic checks measure it.
 - **[Recommendation]** Eyes are the most important readability feature: on a 360 px tall phone screen at the gameplay camera they should be at least about 14 px tall (Slime V1: about 33 px). Express mood mainly through eye shape and shine placement, and keep mouths small. Use Shadow Navy for "ink", never pure black.
 
 ## 6. Fantasy visual identity
@@ -87,7 +87,7 @@ The "typical use" column is a **[Recommendation]**; the six colours themselves a
 
 ## 7. Roblox proportions and orientation
 
-- **[Existing game]** Gameplay camera (ArenaView): 18 studs in front of and 5.4 studs above the enemy's ground point, aimed 3.4 studs above it, field of view 50. The Milestone 1 slime was about 6 studs wide and 5.9 studs tall.
+- **[Existing game]** Gameplay camera (ArenaView): 18 studs in front of and 5.4 studs above the enemy's ground point, aimed 3.4 studs above it, field of view 50. The Milestone 1 slime is 6 studs wide at the body (7.2 at its puddle) and about 6.2 studs tall to its leaf tip (5.2 to the top of the body).
 - **[Implemented, review pending]** Slime V1 contract: pivot at the ground point under the body centre; front faces local −Z; "Right"/"Left" part names are the creature's own sides; built at scale 1 and scalable from 0.1 to 10 with identical proportions; parts may dip 0.35 studs × scale below the pivot for a flat contact edge.
 - **[Recommendation]** Use the same contract for every enemy: ground-point pivot, front on −Z, standard enemy footprint about 6–8 studs wide at scale 1, bosses by scale rather than separate models, and attachments named `Center`, `Top` and `Face` for effects.
 
