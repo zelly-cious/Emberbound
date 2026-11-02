@@ -6,7 +6,7 @@
 | Adopted source | `9a988c9254e07ac50dcf32fe4b55ba975613390d` (branch `candidate/m2-defect-001-ftz-subnormal`), unchanged |
 | Branch | `feature/m2-bignum-adoption-round4`: the reviewed candidate `9a988c9`, merged with the reviewed installer branch (`feature/m2-tools-001-installer` at `bceecb6`), plus the round 4 adoption commits. Both inputs share base `2b832d2` (PR #1 head) and change disjoint files. |
 | Authority | Producer direction to adopt the candidate. Codex's independent read-only reviews: candidate **PASS WITH RISKS**, and the historical QA evidence waiver **ACCEPT WITH RISKS**. The QA report is at QA branch commit `ae861bd` (R-9 there lists the work this revision does). |
-| Results log | `review/M2_BIGNUM_ADOPTION_ROUND4_RESULTS.txt` (raw output of every executed check) |
+| Results log | `review/M2_BIGNUM_ADOPTION_ROUND4_RESULTS.txt` (first review, tree `28861fc`); `review/M2_BIGNUM_ADOPTION_ADOPT_FIXES_RESULTS.txt` (after the ADOPT-01–03 corrections; section 5) |
 
 ## 1. What changed
 
@@ -82,4 +82,25 @@ Kept unchanged as history: rounds 1–3 of the manifest; the frozen commit `e9d8
 
 ## 4. Reviewer instructions
 
-See `review/M2_BIGNUM_ADOPTION_CODEX_HANDOFF.md`.
+- First review: `review/M2_BIGNUM_ADOPTION_CODEX_HANDOFF.md`.
+- Final review after the corrections: `review/M2_BIGNUM_ADOPTION_FINAL_CODEX_HANDOFF.md`.
+
+## 5. Corrections after Codex's review of `a9326f1` (verdict PASS WITH RISKS)
+
+Codex found three Low-severity issues. All are fixed. **No gameplay source, BigNum implementation, installer payload or historical QA record changed**: `src/` still equals `9a988c9`, and `InstallM2.lua` still has SHA-256 `b12fa7023f25a93d2e2a80aef0042c0cf962d81a7aef84dd4ca1fd06873623d4`.
+
+| ID | Finding | Fix | Regression evidence |
+|---|---|---|---|
+| ADOPT-01 | `M2_REVIEW_GUIDE.md` inventory row (line 69) still said 61 tests | The row now says 67, with the history: 48 in round 1, 61 after `e4b0108`, 67 after the round 4 adoption | New package check: no current document (the guides, requirements, READMEs, template and install instructions) claims 61 tests outside an explicitly historical note. End-to-end test: restoring the old row makes `check_release_package.py` exit 1, naming `M2_REVIEW_GUIDE.md:69`. |
+| ADOPT-02 | `check_release_package.py` ignored Lua child-process exit codes, so a Lua error after a verdict could pass | Added `run_lua` / `evaluate_parity` / `run_unit_tests` / `evaluate_unit`.<br>• A positive parity run needs exit 0 **and** exactly one PASS verdict with 24/6/0.<br>• A negative control needs exit 0 (it ran to completion) **and** the FAIL verdict with 22/6/0 and exactly 2 `content differs` lines.<br>• The unit-test run goes through `run_matrix.run` (which returns the Lua exit code) and needs exit 0 plus the exact 8 T-1 lines. | `tests/test_verification_tools.py`: real `lua5.1` runs with an error injected **after** the PASS verdict, after the FAIL verdict, and after `ALL PASSED (67 tests)`, plus a checker that does not compile. Each is rejected; the unmodified controls are accepted. The `a9326f1` checker, given the same injected errors, reports 32/32 (false success reproduced). |
+| ADOPT-03 | Manifest headings were not fully validated, so a duplicate or extra current round could slip through | New `generate_installer.manifest_heading_errors`, used by `run_tests.py`, `check_release_package.py` and the generator. It requires exactly rounds 4, 3, 2, 1 (24/24/24/23 files) and round 4 as the only current round. It rejects duplicate or unexpected headings and hash-line counts that disagree with a heading. The generator's output is unchanged. | `tests/test_verification_tools.py`: a fake `Round 5 (current)`, a duplicate Round 3, an unexpected `## Notes`, Round 3 marked current, Round 4 marked historical and a missing hash line are each rejected. End to end, both `check_release_package.py` and `run_tests.py` exit 1 on a working tree with a fake `Round 5 (current)`, and the file is restored byte for byte. The `a9326f1` checkers report 32/32 and 19/19 on that tree (false success reproduced). |
+
+Post-correction results (raw output in `review/M2_BIGNUM_ADOPTION_ADOPT_FIXES_RESULTS.txt`):
+
+| Check | Result |
+|---|---|
+| Generator `--check` | installer and manifest match; SHA-256 `b12fa702…3623d4` unchanged |
+| `run_tests.py` | 19/19 (69/69 Lua behaviour tests) |
+| `check_release_package.py` | 34/34 (adds the heading and stale-count checks). Appendix B text: 24/24 PASS (Lua exit 0). Both negative controls: 22/24 FAIL (Lua exit 0). |
+| `test_verification_tools.py` | 20/20 |
+| Unit tests and harness probes, four floating-point modes | 67/67 and 75/75 per mode (translated harness; native FTZ probe figure remains Codex's 74/75) |

@@ -16,6 +16,8 @@ Current installer: **v1.2.0** (round 4 BigNum adoption). It has the same install
 | `tests/run_tests.py` | Offline test runner (Python 3 + `lua5.1`). |
 | `tests/installer_tests.lua` | 69 behaviour tests that run the real `InstallM2.lua` text. |
 | `tests/mock_roblox.lua` | Minimal fake Roblox engine for those tests (not a Studio substitute). |
+| `tests/check_release_package.py` | Round 4 release-package consistency checks, including the guide's Appendix B checker text run offline. |
+| `tests/test_verification_tools.py` | Regression tests for the verification tooling: Lua exit codes (ADOPT-02) and manifest headings (ADOPT-03). |
 
 ## Source of truth
 
@@ -55,6 +57,11 @@ The installer prints only `[M2 Installer]` status lines. It never prints `[Parit
 - **What changed in the installer:** the embedded `BigNum` (FILES[1]) and `BigNumTests` (FILES[12]), the header comment, `INSTALLER_VERSION` (1.2.0) and `FROZEN_COMMIT` (`9a988c9`). The installer logic is byte-identical to v1.1.0; this was checked by diffing the generated file outside the two FILES blocks and the header.
 - **Integrity values:** `InstallM2.lua` is 240,675 bytes, SHA-256 `b12fa7023f25a93d2e2a80aef0042c0cf962d81a7aef84dd4ca1fd06873623d4` (`INSTALLER_MANIFEST.txt`). The download link in `INSTALL_INSTRUCTIONS.md` is pinned to commit `d2e638188efaa2f8fdcd59a9c4b2c35e1763a396`, which contains this file.
 - **Generator:** source pin and manifest round 4. The manifest is read from HEAD, with the ancestor and heading checks above.
+- **Review corrections (Codex PASS WITH RISKS at `a9326f1`):**
+  - ADOPT-02: `check_release_package.py` requires Lua exit code 0 for every parity run, negative control and the unit-test run.
+  - ADOPT-03: `run_tests.py`, `check_release_package.py` and the generator reject duplicate or unexpected manifest headings and any current round other than round 4 (`generate_installer.manifest_heading_errors`).
+  - Neither changes the generated installer.
+  - Regression tests: `tests/test_verification_tools.py`.
 - **Tests:** `run_tests.py` checks source identity against round 4. Its repository-scope checks now cover the adoption: `src/` unchanged from `9a988c9`, rounds 1-3 of `SOURCE_HASHES.txt` keep their hash lines, round 4 is the only current round, and only release-package files changed. One Lua damage test ("a recorded checksum changed") hard-coded the frozen BigNum Adler-32. It now reads FILES[1]'s value from the installer, so it makes the same mutation with any payload.
 
 ## Corrections after the Codex review of v1.0.0 (`de4aa63`, verdict FAIL)
@@ -80,6 +87,8 @@ The installer prints only `[M2 Installer]` status lines. It never prints `[Parit
 python3 tools/m2/generate_installer.py           # writes InstallM2.lua and INSTALLER_MANIFEST.txt
 python3 tools/m2/generate_installer.py --check   # exit 0 only if both files equal a fresh generation
 python3 tools/m2/tests/run_tests.py              # all offline checks (needs lua5.1 / luac5.1 on PATH)
+python3 tools/m2/tests/check_release_package.py  # round 4 release-package consistency
+python3 tools/m2/tests/test_verification_tools.py  # regression tests for the two checkers
 ```
 
 `run_tests.py` covers:

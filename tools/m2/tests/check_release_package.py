@@ -22,6 +22,12 @@ Checks that every artifact of the round 4 BigNum adoption agrees with the source
      the source files) prints 24/24 PASS; negative controls: the round 4 checker against the
      round 3 BigNum files, and the round 3 checker against the round 4 sources, both FAIL 22/24.
 
+Every Lua child process must exit with code 0: a positive parity run needs exit 0 plus the PASS
+verdict, a negative control needs exit 0 (it ran to completion) plus the FAIL verdict, and the
+unit-test run needs exit 0 plus the exact TestRunner lines (ADOPT-02). SOURCE_HASHES.txt headings
+are validated with generate_installer.manifest_heading_errors (ADOPT-03). Regression tests for both:
+tools/m2/tests/test_verification_tools.py.
+
 Nothing here runs Roblox Studio. Studio must still run the installer, the Appendix B checker and
 the unit tests.
 """
@@ -44,12 +50,16 @@ sys.path.insert(0, str(TOOLS_DIR))
 sys.path.insert(0, str(REPO / "review" / "ftz-harness"))
 import generate_installer as gen  # noqa: E402
 import luau51  # noqa: E402
+import run_matrix  # noqa: E402
 
 SOURCE = "9a988c9254e07ac50dcf32fe4b55ba975613390d"
 FROZEN = "e9d878d94155610558c9c6252d76f202dfd956b4"  # round 3 release, historical
 ROUND3_GUIDE = "2b832d267cc7461b5bebb138fe861d5b5e4ed0e9"  # guide pinned to the round 3 release
 QA_COMMIT = "ae861bd"
 TEST_TOTAL = 67
+CURRENT_DOCS = ("M2_STUDIO_REGRESSION_GUIDE.md", "M2_REVIEW_GUIDE.md", "M2_REQUIREMENTS.md", "README.md",
+                "review/M2_STUDIO_QA_RESULTS_TEMPLATE.md", "tools/m2/INSTALL_INSTRUCTIONS.md", "tools/m2/README.md")
+STALE_COUNT = re.compile(r"\b61 (?:deterministic |unit )?tests\b|ALL PASSED \(61 tests\)")
 
 results: list[tuple[bool, str]] = []
 
@@ -104,6 +114,9 @@ def main() -> int:
     record(same_src, f"working-tree src/ is identical to the source commit {SOURCE[:7]}")
     worktree = {f["path"]: values((REPO / gen.repo_file(f["path"])).read_bytes()) for f in files}
     record(worktree == computed, "all 24 working-tree source files have the source commit's bytes, lines, Adler-32 and SHA-256")
+    heading_errors = gen.manifest_heading_errors(text("SOURCE_HASHES.txt"))
+    record(not heading_errors, "SOURCE_HASHES.txt headings: exactly rounds 4, 3, 2, 1, no duplicate or unexpected heading, "
+           "round 4 the only current round, hash-line counts match", "; ".join(heading_errors))
     rounds = manifest_rounds(text("SOURCE_HASHES.txt"))
     r4 = sorted(rounds.get("4", ("", []))[1])
     expected_r4 = sorted(f"{f['sha256']}  {gen.repo_file(f['path'])}" for f in files)
@@ -129,14 +142,12 @@ def main() -> int:
     record(table == expected_table, "Appendix A checksum table (bytes, lines, Adler-32, SHA-256) equals the source values")
     expected_b = [(f["path"], f["className"], *computed[f["path"]][:3]) for f in files]
     record(appendix_b_rows(guide) == expected_b, "Appendix B checker table equals the source values (24 rows)")
-    unit = subprocess.run([sys.executable, str(REPO / "review/ftz-harness/run_matrix.py"), "--source", "worktree", "--entries", "unit",
-                           "--modes", "gradual", "--show"], capture_output=True, text=True)
-    runner_lines = re.findall(r"^\[Tests\] (?:\w+Tests: \d+ passed, 0 failed|ALL PASSED \(\d+ tests\))$", unit.stdout, re.M)
     t1 = guide[guide.index("### T-1"):guide.index("### T-2")]
     t1_lines = re.findall(r"^\[Tests\] .*$", t1, re.M)
-    record(len(runner_lines) == 8 and runner_lines == t1_lines and runner_lines[-1] == f"[Tests] ALL PASSED ({TEST_TOTAL} tests)",
-           f"guide T-1 block equals the 8 lines the shipped TestRunner prints offline (ALL PASSED ({TEST_TOTAL} tests))",
-           f"runner={runner_lines} guide={t1_lines}")
+    unit_code, unit_output = run_unit_tests()
+    unit_ok, unit_detail = evaluate_unit(unit_code, unit_output, t1_lines)
+    record(unit_ok, f"guide T-1 block equals the 8 lines the shipped TestRunner prints offline (exit 0, ALL PASSED ({TEST_TOTAL} tests))",
+           unit_detail)
     record(f"(31 + 4 + 5 + 7 + 3 + 7 + 10 = {TEST_TOTAL})" in t1 and f"1 FAILED, {TEST_TOTAL} passed" in guide
            and f"`[Tests] ALL PASSED ({TEST_TOTAL} tests)` | Unit tests |" in guide and "ALL PASSED (61 tests)" not in guide,
            "guide T-1 sum, T-2 expectation and the allowed-messages table say 67; no current '61 tests' remains")
@@ -183,6 +194,9 @@ def main() -> int:
     record(f"{TEST_TOTAL} tests since the round 4 BigNum adoption" in text("M2_REQUIREMENTS.md") and SOURCE in text("M2_REQUIREMENTS.md"),
            "M2_REQUIREMENTS.md records the adoption and 67 tests")
     record(f"the shipped {TEST_TOTAL} tests" in text("README.md"), "README.md says 67 tests")
+    stale = [f"{doc}:{number}" for doc in CURRENT_DOCS for number, line in enumerate(text(doc).splitlines(), 1)
+             if STALE_COUNT.search(line) and "historical" not in line]
+    record(not stale, "no current document claims 61 tests outside an explicitly historical note (ADOPT-01)", ", ".join(stale))
     qa_same = git("hash-object", "review/M2_STUDIO_QA_RESULTS.md").strip() == git("rev-parse", f"{QA_COMMIT}:review/M2_STUDIO_QA_RESULTS.md").strip()
     record(qa_same, f"review/M2_STUDIO_QA_RESULTS.md is byte-identical to QA commit {QA_COMMIT} (historical evidence)")
     diff = git("diff", SOURCE, "--", "review/DEFECT-001B_REPORT.md", "review/DEFECT-001_REPORT.md").decode()
@@ -202,15 +216,9 @@ def main() -> int:
         ("round 4 checker, round 3 BigNum and BigNumTests (negative control)", guide, round3_sources, False),
         ("round 3 checker, round 4 sources (negative control: the expected initial 22/24)", round3_guide, sources, False),
     ):
-        output = run_checker(appendix_b_snippet(snippet_guide), place, files)
-        summary = re.search(r"\[Parity\] scripts matching: (\d+) / 24, remotes: (\d+) / 6, extra scripts: (\d+)", output)
-        passed = "[Parity] RESULT: PASS" in output
-        if expect_pass:
-            ok = passed and summary is not None and summary.groups() == ("24", "6", "0")
-        else:
-            ok = (not passed) and summary is not None and summary.groups() == ("22", "6", "0") and output.count("content differs") == 2
-        record(ok, f"Appendix B checker text offline, {label}: " + (summary.group(0) if summary else "no summary")
-               + (" RESULT: PASS" if passed else " RESULT: FAIL"), output[-600:])
+        code, output = run_checker(appendix_b_snippet(snippet_guide), place, files)
+        ok, description = evaluate_parity(code, output, expect_pass)
+        record(ok, f"Appendix B checker text offline, {label}: {description}", output[-600:])
 
     failed = sum(1 for ok, _ in results if not ok)
     print(f"[package checks] {len(results) - failed} passed, {failed} failed")
@@ -273,7 +281,55 @@ def lua_long_string(value: str) -> str:
     return f"[{eq}[\n{value}]{eq}]"
 
 
-def run_checker(snippet: str, place: dict[str, str], files: list[dict]) -> str:
+def run_lua(chunk: str) -> tuple[int, str]:
+    """Run a Lua 5.1 chunk; returns (exit code, stdout + stderr)."""
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "chunk.lua"
+        path.write_text(chunk)
+        run = subprocess.run(["lua5.1", str(path)], capture_output=True, text=True)
+    return run.returncode, run.stdout + run.stderr
+
+
+PARITY_SUMMARY = re.compile(r"\[Parity\] scripts matching: (\d+) / 24, remotes: (\d+) / 6, extra scripts: (\d+)")
+
+
+def evaluate_parity(code: int, output: str, expect_pass: bool) -> tuple[bool, str]:
+    """Positive run: exit 0, exactly one PASS verdict, no FAIL verdict or FAIL line, 24 / 6 / 0.
+    Negative control: exit 0 (the checker ran to completion), the FAIL verdict and no PASS verdict,
+    22 / 6 / 0 and exactly two 'content differs' lines. Anything else, including a Lua error after
+    a verdict was printed, is a failure."""
+    summary = PARITY_SUMMARY.search(output)
+    passes = output.count("[Parity] RESULT: PASS")
+    fails = output.count("[Parity] RESULT: FAIL")
+    description = (summary.group(0) if summary else "no summary") + (" RESULT: PASS" if passes else " RESULT: FAIL" if fails else " no verdict")
+    description += f" (lua exit {code})"
+    if code != 0:
+        return False, description
+    if expect_pass:
+        ok = passes == 1 and fails == 0 and "[Parity] FAIL" not in output and summary is not None and summary.groups() == ("24", "6", "0")
+    else:
+        ok = (passes == 0 and fails == 1 and summary is not None and summary.groups() == ("22", "6", "0")
+              and output.count("content differs") == 2)
+    return ok, description
+
+
+def run_unit_tests() -> tuple[int, str]:
+    """The shipped TestRunner on the working-tree sources (gradual mode); returns (lua exit code, output)."""
+    with tempfile.TemporaryDirectory() as tmp:
+        workdir = Path(tmp)
+        return run_matrix.run("worktree", "unit", "gradual", run_matrix.ftz_library(workdir), workdir, "HEAD")
+
+
+def evaluate_unit(code: int, output: str, expected_lines: list[str]) -> tuple[bool, str]:
+    """Exit 0, and the [Tests] lines are exactly the expected 8, ending in ALL PASSED (67 tests)."""
+    lines = re.findall(r"^\[Tests\] .*$", output, re.M)
+    if code != 0:
+        return False, f"unit-test process exited with code {code}; [Tests] lines: {lines}"
+    ok = (len(expected_lines) == 8 and lines == expected_lines and lines[-1] == f"[Tests] ALL PASSED ({TEST_TOTAL} tests)")
+    return ok, f"runner={lines} expected={expected_lines}"
+
+
+def run_checker(snippet: str, place: dict[str, str], files: list[dict]) -> tuple[int, str]:
     items = ",\n".join(
         f'{{ path = "{f["path"]}", className = "{f["className"]}", source = {lua_long_string(place[f["path"]])} }}' for f in files
     )
@@ -286,11 +342,7 @@ def run_checker(snippet: str, place: dict[str, str], files: list[dict]) -> str:
         # "name += 1", is rewritten first; the rest of the text is translated unchanged.
         luau51.translate(re.sub(r"\b([A-Za-z_]\w*) \+= 1\b", r"\1 = \1 + 1", snippet)),
     ])
-    with tempfile.TemporaryDirectory() as tmp:
-        path = Path(tmp) / "appendix_b.lua"
-        path.write_text(chunk)
-        run = subprocess.run(["lua5.1", str(path)], capture_output=True, text=True)
-    return run.stdout + run.stderr
+    return run_lua(chunk)
 
 
 if __name__ == "__main__":

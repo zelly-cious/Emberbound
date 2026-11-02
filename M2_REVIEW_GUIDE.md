@@ -66,7 +66,7 @@ Package-to-repository name mapping (contents byte-identical): `ServerInit.server
 | `src/ServerScriptService/UpgradeService.luau` | new | 222 | Purchase transaction, request-id replay guard, `UpgradeUpdate` |
 | `src/ServerScriptService/PlayerSessionService.luau` | new | 147 | Join / ClientReady / leave across all services, in a fixed order |
 | `src/ServerScriptService/ServerInit.luau` | revised | 27 | Starts CombatService, UpgradeService, PlayerSessionService |
-| `src/ServerScriptService/Tests/*` | new | 9 files | TestKit, TestRunner (Studio only) and 61 deterministic tests in 7 suites (48 in round 1; TestKitTests and 6 more tests added in e4b0108) |
+| `src/ServerScriptService/Tests/*` | new | 9 files | TestKit, TestRunner (Studio only) and 67 deterministic tests in 7 suites (48 in round 1; 61 after TestKitTests and 6 more tests were added in e4b0108; 67 after the round 4 adoption of `9a988c9` added 6 BigNum regression tests) |
 | `src/StarterPlayer/StarterPlayerScripts/CombatClient.luau` | revised | 291 | Decodes BigNum strings, wires currency/upgrade updates and the panel |
 | `src/StarterPlayer/StarterPlayerScripts/CombatClient/CombatHud.luau` | revised | 424 | Uses `BigNum.format`; Gold set separately via `SetGold` |
 | `src/StarterPlayer/StarterPlayerScripts/CombatClient/UpgradePanel.luau` | new | 358 | Tap upgrade panel (placeholder UI) |

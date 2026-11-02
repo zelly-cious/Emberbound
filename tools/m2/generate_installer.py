@@ -73,6 +73,48 @@ class GenerationError(Exception):
     pass
 
 
+MANIFEST_TITLE = "# SHA-256 manifests (LF line endings, as stored in git)"
+ROUND_HEADING = re.compile(r"^## Round (\d+) \u2014 (.+) \((\d+) files; (current|historical)\)$")
+# The only valid layout of SOURCE_HASHES.txt after the round 4 adoption: newest first, round 4 the only current round.
+EXPECTED_ROUNDS = (("4", 24, "current"), ("3", 24, "historical"), ("2", 24, "historical"), ("1", 23, "historical"))
+
+
+def manifest_heading_errors(text: str) -> list[str]:
+    """Structural problems in SOURCE_HASHES.txt: unexpected or duplicate headings, a current round other
+    than round 4 (or none, or several), and sections whose hash-line count differs from their heading."""
+    errors = []
+    lines = text.splitlines()
+    if not lines or lines[0] != MANIFEST_TITLE:
+        errors.append("the first line is not the manifest title")
+    found: list[list] = []  # [round, declared files, status, hash lines]
+    for number, line in enumerate(lines[1:], 2):
+        if line.startswith("#"):
+            match = ROUND_HEADING.match(line)
+            if match is None:
+                errors.append(f"line {number}: unexpected heading {line!r}")
+            else:
+                found.append([match.group(1), int(match.group(3)), match.group(4), 0])
+        elif re.fullmatch(r"[0-9a-f]{64}  src/\S+", line):
+            if found:
+                found[-1][3] += 1
+            else:
+                errors.append(f"line {number}: hash line before any round heading")
+    rounds = [entry[0] for entry in found]
+    duplicates = sorted({r for r in rounds if rounds.count(r) > 1})
+    if duplicates:
+        errors.append(f"duplicate round headings: {', '.join(duplicates)}")
+    current = [entry[0] for entry in found if entry[2] == "current"]
+    if current != ["4"]:
+        errors.append(f"round 4 must be the only current round (current rounds: {', '.join(current) or 'none'})")
+    layout = [(entry[0], entry[1], entry[2]) for entry in found]
+    if layout != list(EXPECTED_ROUNDS):
+        errors.append(f"headings must be exactly rounds 4, 3, 2, 1 (24/24/24/23 files; only round 4 current); found {layout}")
+    for number, declared, _, count in found:
+        if count != declared:
+            errors.append(f"round {number} declares {declared} files but lists {count} hash lines")
+    return errors
+
+
 def git(repo: Path, *args: str) -> bytes:
     result = subprocess.run(["git", "-C", str(repo), *args], capture_output=True)
     if result.returncode != 0:
@@ -151,6 +193,9 @@ def read_manifest(repo: Path) -> dict[str, str]:
     if subprocess.run(["git", "-C", str(repo), "merge-base", "--is-ancestor", FROZEN_COMMIT, "HEAD"]).returncode != 0:
         raise GenerationError(f"the source commit {FROZEN_COMMIT} is not an ancestor of HEAD")
     text = git(repo, "show", "HEAD:SOURCE_HASHES.txt").decode()
+    problems = manifest_heading_errors(text)
+    if problems:
+        raise GenerationError("SOURCE_HASHES.txt at HEAD: " + "; ".join(problems))
     lines = text.splitlines()
     starts = [i for i, line in enumerate(lines) if line.startswith(MANIFEST_SECTION)]
     if len(starts) != 1:

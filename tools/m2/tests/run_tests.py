@@ -13,8 +13,10 @@
    damaged and truncated text, joined lines, CRLF, and rollback after injected failures.
 6. The installed result from step 5 is checked with an offline replica of the Appendix B
    parity logic, using the expected values parsed from M2_STUDIO_REGRESSION_GUIDE.md.
-7. Git (round 4 adoption scope): src/ is unchanged from the source commit; SOURCE_HASHES.txt keeps rounds 1-3
-   (hash lines unchanged) and adds round 4; only release-package files changed since the source commit.
+7. Git (round 4 adoption scope): src/ is unchanged from the source commit; SOURCE_HASHES.txt has exactly
+   rounds 4, 3, 2, 1 with no duplicate or unexpected heading and round 4 the only current round
+   (generate_installer.manifest_heading_errors), and keeps rounds 1-3 hash lines unchanged; only
+   release-package files changed since the source commit.
 
 None of this runs Roblox Studio. Studio behaviour must still be tested by the project owner.
 """
@@ -159,13 +161,16 @@ def main() -> int:
     # 7. Repository hygiene (round 4 adoption scope).
     src_same = subprocess.run(["git", "-C", str(REPO), "diff", "--quiet", gen.FROZEN_COMMIT, "--", "src"]).returncode == 0
     record(src_same, "working tree src/ is identical to the source commit (no gameplay change in the adoption)")
+    manifest_text = (REPO / "SOURCE_HASHES.txt").read_text()
+    heading_errors = gen.manifest_heading_errors(manifest_text)
+    record(not heading_errors,
+           "SOURCE_HASHES.txt headings: exactly rounds 4, 3, 2, 1, no duplicate or unexpected heading, round 4 the only current round, "
+           "hash-line counts match", "; ".join(heading_errors))
     old_rounds = manifest_rounds(subprocess.check_output(["git", "-C", str(REPO), "show", f"{gen.FROZEN_COMMIT}:SOURCE_HASHES.txt"]).decode())
-    new_rounds = manifest_rounds((REPO / "SOURCE_HASHES.txt").read_text())
+    new_rounds = manifest_rounds(manifest_text)
     kept = all(new_rounds.get(n, (None, None))[1] == old_rounds[n][1] for n in old_rounds)
     record(sorted(old_rounds) == ["1", "2", "3"] and kept,
            "SOURCE_HASHES.txt rounds 1-3 keep their hash lines unchanged (historical manifests preserved)")
-    record("4" in new_rounds and "current" in new_rounds["4"][0] and all("historical" in new_rounds[n][0] for n in ("1", "2", "3")),
-           "round 4 is the only current manifest; rounds 1-3 are marked historical")
     changed = subprocess.check_output(["git", "-C", str(REPO), "diff", "--name-only", gen.FROZEN_COMMIT]).decode().split()
     untracked = subprocess.check_output(["git", "-C", str(REPO), "ls-files", "--others", "--exclude-standard"]).decode().split()
     outside = [p for p in changed + untracked if not p.startswith(PACKAGE_PATHS)]
