@@ -21,9 +21,11 @@ The place file `Emberbound_M2_DEFECT001_QA.rbxl` was saved afterwards. The open 
 
 **Revision 5.** Adds the Roblox Studio Script Analysis evidence from the saved `Emberbound_M2_DEFECT001_QA.rbxl`, which contains candidate `9a988c9` (section 2.3). It updates R-9 accordingly. No test result changed.
 
+**Revision 6 (2026-11-03).** Incorporates the producer's subsequent explicit Roblox Studio confirmations for U-3/U-4/U-7, A-4, MOB-6/MOB-7 and C-5. The producer formally accepted M1-2 as a **known Low-severity, nonblocking M2 deviation** without changing its strict FAIL. This is reported evidence, not new independently collected Studio logs. P-3 and the other outstanding evidence/adoption requirements remain open.
+
 | | |
 |---|---|
-| **Overall status** | **CONDITIONAL — NOT A PASS.** 1 FAIL (M1-2, reproduced). The owner proposes a Low-severity, nonblocking deviation for it, which **needs formal producer approval** and has not been granted. Also open: 7 PARTIAL, and 21 passes that rest only on a category-level or summary-level statement and need confirming (PASS†). No test is BLOCKED, and every required test now has a result. Codex's independent review (2.2) did **not** approve candidate adoption, full QA acceptance or PR #1 merge readiness. Section 6 lists the open release-blocking questions. |
+| **Overall status** | **CONDITIONAL — NOT A FULL QA PASS / NOT RELEASE-READY.** 37 PASS (including revision-6 user confirmations), 20 PASS† pending detail, 1 strict FAIL (M1-2; **formally producer-accepted Low/nonblocking M2 deviation**), 1 PARTIAL (P-3), 0 BLOCKED, 2 optional NOT RUN and 1 optional NOT VERIFIED. This does not approve the candidate, Milestone 2 completion or PR #1 merge. General no-red-Output confirmation, mobile specifics, independent warning classification, risk acceptance for BigNum and revised source pin/manifest/parity/installer remain outstanding (section 6). |
 | **Provenance** | The project owner ran the tests in Roblox Studio and reported the results through the Roblox Studio testing conversation: written observations, plus quoted Output lines for P-5 (both runs), T-2, L-1, C-3, C-4 and the cleanup counts. **No Output files (`QA_*.txt`) or screenshots are in the repository.** A screenshot was captured for N-6; it is not in the repository. Claude Code wrote this report from the owner's reports and repository evidence. No observation, log, screenshot, measurement or test action was added beyond what the owner reported; where something is derived or inferred, it says so. |
 | **Where the referenced files are** | The tested code, `review/DEFECT-001_REPORT.md`, `review/DEFECT-001B_REPORT.md` and `review/DEFECT-001B_CODEX_HANDOFF.md` are on branch `candidate/m2-defect-001-ftz-subnormal` at `9a988c9`. The pinned guide and template are on PR #1 head `2b832d2`, and also on `9a988c9`. This report is committed on `claude/emberbound-m2-regression-testing-56vtjh`, which holds an older, unpinned copy of the guide; review against the pinned version. |
 | **Not done** | PR #1 is not merged. Milestone 2 is not marked complete. Milestone 2.1 is not started. No gameplay source was changed. |
@@ -142,7 +144,7 @@ For these tests the only evidence is the owner's statement that "Combat, upgrade
 | Network-lag behaviour | D-1, D-2, D-3, D-4 |
 | Large-number displays | N-1, N-3 |
 
-Two more PASS† rows rest on a summary-level remark (MOB-1, MOB-2), and one on a procedure that differs from the guide (A-4); see their notes.
+Two more PASS† rows rest on a summary-level remark (MOB-1, MOB-2). A-4 was subsequently repeated with the guide's exact one-request procedure and is now PASS.
 
 ### 3.3 Consistency checks on the reported numbers (analysis, not new observations)
 
@@ -162,10 +164,10 @@ Every check uses the formulas in `ProgressionConfig` and `GameConfig` and the gu
 
 | Test | Guide | Reported | Treatment |
 |---|---|---|---|
-| A-4 | **One** request, `FireServer("TapDamage", 100)`; expect `result id=100 InsufficientFunds` | "One hundred unaffordable purchases were rejected with InsufficientFunds" | Read as the guide's single request with request id 100. If 100 separate requests had each received a reply, that would exceed the 10-request burst limit, and A-5/A-6 show the limit working. PASS† until confirmed (R-12). |
+| A-4 | **One** request with ID `100` | Initial run sent **100 separate requests** (owner clarified). A later fresh session sent **one** request with ID `100`. Output: `04:00:35.259 [QA] A-4 id=100 reason=InsufficientFunds level=1 - Client`. The owner confirmed Gold remained `0` and the red `Not enough Gold` appeared. | The exact-guide repeat is **PASS**; do not treat the original 100 requests as 100 accepted/replied requests. R-12 resolved. |
 | L-2, L-4 | The remaining player is Player1 | The remaining player was **Player2**; the new player was **Player3** | Equivalent check of an unaffected remaining player. These sessions followed the first L-1 attempt, whose capture targeted the wrong player; L-1 was later repeated cleanly. |
 | C-4 | C.16 prints `[QA] auto-attack ran …` | Output reads `[QA] normal-damage auto-attack ran 181 s` | A relabelled variant of C.16 was used; its text was not supplied. The counts are consistent (3.3). |
-| MOB-6 | 4 rotations, then the PlayerGui duplicate check | 3 rotations; no duplicate-HUD check | PARTIAL |
+| MOB-6 | Rotation interactions and 1 `CombatHud` / 1 `UpgradePanel` in PlayerGui | Three orientation changes with successful slime touches and zero panel attacks were initially reported. The owner subsequently confirmed the remaining rotation and that the duplicate-HUD check worked, without quoting new counts. | **PASS by owner confirmation**; detailed fourth transition / 1-and-1 Output not supplied (R-7). |
 
 ## 4. Results
 
@@ -180,7 +182,7 @@ Every check uses the formulas in `ProgressionConfig` and `GameConfig` and the gu
 | T-2 | Broken test module is a failure | **PASS** | With the temporary `EmptyTests`: `[Tests] FAIL could not load EmptyTests: did not return a test suite` and `[Tests] 1 FAILED, 67 passed`; no `ALL PASSED` appeared. After `EmptyTests` was deleted: `[Tests] ALL PASSED (67 tests)`. This matches the candidate-adapted expectation (3.1). |
 | X-1 | *(added)* DEFECT-001/001B BigNum FTZ/subnormal Studio checks | **PASS** | Reported passed in **Edit, Server and Client** contexts. Probe lines not supplied. This covers the arithmetic and serialization round-trip items of `review/DEFECT-001B_REPORT.md` §9; the unit-test item is T-1. |
 | M1-1 | Clean startup | **PASS** | Owner observed clean startup passing. The `Created combat state …` line and the startup Output were not quoted. |
-| M1-2 | No avatar, fixed camera | **FAIL** | **Reproduced.** Focus stayed at `0, 53.7913703918457, -1.8776741027832031`; the guide's strict expectation is `0, 54, 0`. Position, rotation, field of view, `Scriptable` type and movement restrictions were correct. An explicit assignment of the expected Focus took effect immediately, then reverted on the next RenderStepped frame. **Proposed disposition (owner): accept as a Low-severity, nonblocking deviation for M2, since no visible gameplay problem was observed. Not approved; needs formal producer approval (R-3).** The FAIL stands; see F-1. |
+| M1-2 | No avatar, fixed camera | **FAIL** | Reproduced: Focus `(0, 53.7913703918457, -1.8776741027832031)` instead of `(0, 54, 0)` and explicit assignment reverted on RenderStepped. Camera aim, position, Scriptable type, FOV and restrictions were correct. **Producer formally accepted as a Low-severity, nonblocking M2 deviation on 2026-11-03.** Strict FAIL is retained; not a code fix, QA PASS or general release approval (R-3, F-1). |
 | M1-3 | Initial sync and HUD values | **PASS†** | Category statement only (3.2) |
 | M1-4 | Ten taps defeat stage 1 once | **PASS†** | Category statement only |
 | M1-5 | Stage 2 and 3 values | **PASS†** | Category statement only |
@@ -189,15 +191,15 @@ Every check uses the formulas in `ProgressionConfig` and `GameConfig` and the gu
 | M1-8 | Extra attack arguments ignored | **PASS†** | Category statement only |
 | U-1 | Panel at 0 Gold | **PASS†** | Category statement only |
 | U-2 | First purchase | **PASS†** | Category statement only |
-| U-3 | HUD, panel and hits agree | **PARTIAL** | The guide checks this after every U-4 purchase, and U-4 was incomplete. Agreement was seen at level 25 (U-5: 75 damage) and at levels 26–28 (N-2: 78, 81, 84), not after each purchase from level 1. |
-| U-4 | Level 24 → 25 by playing | **PARTIAL** | The natural-progression boundary hit was **incomplete**. Gold before / after the 23-Gold purchase: *not supplied*. U-5 verified the boundary directly. |
+| U-3 | HUD, panel and hits agree | **PASS** | Owner explicitly confirmed consistent HUD Tap Damage, panel Tap Damage and real damage during normal upgrades through Level 25. U-5 (75) and N-2 (78/81/84) corroborate some levels. Per-purchase numerical logs were not supplied; the confirmation is owner testimony. |
+| U-4 | Level 24 → 25 by playing | **PASS** | Owner explicitly confirmed **normal play** from Level 1 to 25, no Gold helper grants, and a 23-Gold Level 24→25 cost, 24→75 Tap Damage, 23 Gold deducted, next value 78 and next cost 25. U-3 owner confirmation covers consistent displays and real damage; U-5 independently verified the boundary hit via helper setup. Natural-run per-purchase logs and exact popup line were not supplied. |
 | U-5 | Level 24 → 25 with exact Gold | **PASS** | Starting at Level 24, a 23-Gold grant bought Level 25 with **exactly 0 Gold** left; Tap Damage became **75**; one attack on an 85-HP enemy left **10 HP**. Not itemized: the E.2 Gold sequence and the count of 23 `Ok` replies in step 2, the panel `Next: 78 damage` / `Need 25 Gold` text, and the `-10` first hit on stage 1. |
 | U-6 | Gold exact just below 2^53 (tested case) | **PASS** | An exact difference of 5 was confirmed. The logged balance (`9007199254740986` expected) and the HUD text were not quoted. |
-| U-7 | Resync after purchases | **PARTIAL** | The numerical resync checks passed. **Not confirmed:** the PASS condition that nothing on screen changes. |
+| U-7 | Resync after purchases | **PASS** | Previously checked correct numerical resync; owner subsequently confirmed there was no visual change, flicker, reset or incorrect HUD/panel display. No screenshot supplied. |
 | A-1 | Malformed upgrade requests | **PASS** | 16 malformed requests were rejected silently: no Upgrade or Currency reply |
 | A-2 | ClientReady junk and spam | **PASS** | Burst syncs = **1** (limit 1). Spam syncs = **6** / printed limit **7**. The sub-condition "screen values never change" was not itemized. |
 | A-3 | Replayed purchase ignored | **PASS** | Replayed ids 1 and 0 got no response; the new id 2 succeeded |
-| A-4 | Server refuses unaffordable purchase | **PASS†** | Reported as "one hundred unaffordable purchases were rejected with InsufficientFunds". The guide sends **one** request with id 100; see 3.4 (R-12). The red `Not enough Gold` flash was not itemized. |
+| A-4 | Server refuses unaffordable purchase | **PASS** | Initial test was 100 separate requests, **not** the guide's procedure. Fresh repeat sent one `FireServer("TapDamage", 100)`; owner supplied `04:00:35.259 [QA] A-4 id=100 reason=InsufficientFunds level=1 - Client` and confirmed Gold 0 and red `Not enough Gold` message. R-12 resolved. |
 | A-5 | Burst of 100 purchase requests | **PASS** | Exactly **10** successful purchases; Level 3 → **13**; Gold 1000 → **925**. This matches the guide's exact expectation and the cost table (3.3). |
 | A-6 | Sustained purchase requests | **PASS** | 50 requests over 2.92 s; replies = **32** / limit **34** (28 Ok, 4 InsufficientFunds); final Gold 29, Level 41. Consistent with the cost table (3.3). |
 | A-7 | Largest request id | **PASS** | id `9007199254740991` produced exactly **one** reply (InsufficientFunds); the duplicate was ignored |
@@ -215,8 +217,8 @@ Every check uses the formulas in `ProgressionConfig` and `GameConfig` and the gu
 | MOB-3 | One tap = one attack | **PASS** | 10 emulated touches, each `processed=false`, in landscape: exactly 10 attacks (9 hits + 1 defeat). Device not stated. |
 | MOB-4 | Panel and button taps never attack | **PASS** | 10 panel touches + 10 button touches: **0 attacks**, in both portrait and landscape |
 | MOB-5 | Combat-area edges and insets | **PASS** | 15 touches on the HUD pills: 0 attacks. 2 touches just outside the panel: 2 attacks. Both orientations checked. Device not stated; the guide requires the notched phone (R-7). |
-| MOB-6 | Rotate during combat | **PARTIAL** | 3 orientation changes during combat; the intended attacks registered (3 reported) and there were 0 accidental panel attacks. **Not performed:** the 4th rotation, and the PlayerGui check for exactly one `CombatHud` and one `UpgradePanel`. |
-| MOB-7 | Small phone and tablet | **PARTIAL** | iPhone 7: portrait tested, **landscape not tested**. Large iPad and Samsung Galaxy S22 Ultra: portrait and landscape tested. |
+| MOB-6 | Rotate during combat | **PASS** | Three prior rotations: 3 successful slime interactions, 0 panel attacks. Owner subsequently confirmed the remaining rotation was tested and worked and that the PlayerGui duplicate HUD/panel check worked. Exact fourth-rotation logger and `1/1` line were not provided; this PASS is based on explicit user confirmation. |
+| MOB-7 | Small phone and tablet | **PASS** | Owner confirmed iPhone 7 landscape as well as portrait, with no attacks from upgrade panel/button touches, and separately confirmed iPad panel/button filtering in both orientations. iPad and Galaxy S22 Ultra portrait/landscape were tested earlier. No verbatim device touch logs supplied. |
 | MOB-8 | Touchscreen PC (optional) | **NOT RUN** | Optional |
 | MOB-9 | Physical phone (optional) | **NOT RUN** | Optional |
 | N-1 | BigNum spot checks | **PASS†** | Category statement only. The `[QA] BigNum spot checks: PASS` line was not quoted. |
@@ -233,7 +235,7 @@ Every check uses the formulas in `ProgressionConfig` and `GameConfig` and the gu
 | C-2 | Fast manual clicking | **PASS** | Counts returned to the baseline |
 | C-3 | Ten minutes of enemy churn | **PASS** | `[QA] auto-attack ran 601 s`; `SUMMARY hits=0 defeats=7183 … currency updates=7183 \| gold=7.7824428161429955e355 stage=7199 hp=2.5508715463324365e518/2.5508715463324365e518`. Counts matched the baseline. The loop ran its full duration, so the game kept responding. Logged values are finite, non-negative and in scientific form (3.3). Not itemized: the HUD's rendering of those values. Memory at 1 / 5 / 10 min: *not supplied* (optional observation). |
 | C-4 | Three minutes at tap damage 1 | **PASS** | `[QA] normal-damage auto-attack ran 181 s`; `SUMMARY hits=2139 defeats=22 … currency updates=22 \| gold=453 stage=23 hp=270/381`. Counts matched the baseline. Exactly consistent with the HP and reward formulas (3.3). |
-| C-5 | Long manual session | **PARTIAL** | The session exceeded 10 minutes. The final check at 02:18:43 (after checks at 02:06:51 and 02:08:58) printed `[QA] CLEANUP TapArea=1 GoldPill=5 CombatStage=2 \| hud=43 panel=26 stage=38`, matching the baseline. **Not independently confirmed:** no noticeable slowdown, and no red errors. Both are PASS conditions. |
+| C-5 | Long manual session | **PASS** | More than 10 minutes, with cleanup counts `TapArea=1 GoldPill=5 CombatStage=2 \| hud=43 panel=26 stage=38` matching baseline at 02:18:43 after checks at 02:06:51 and 02:08:58. Owner explicitly confirmed no noticeable slowdown, freezing or unexpected red errors during the session. The Output file itself was not provided. |
 
 ### 4.1 Totals
 
@@ -241,24 +243,30 @@ Guide tests (62):
 
 | PASS | PASS† (needs confirmation) | FAIL | PARTIAL | BLOCKED | NOT RUN (optional) | NOT VERIFIED |
 |---|---|---|---|---|---|---|
-| **30** | **21** | **1** | **7** | **0** | **2** | **1** (optional P-4) |
+| **37** | **20** | **1** | **1** | **0** | **2** | **1** (optional P-4) |
 
-On the template's four-mark line: **PASS 30 (+21 conditional), FAIL 1, BLOCKED 0, NOT RUN 2.** Another 7 PARTIAL results and 1 optional NOT VERIFIED result do not fit those four marks; none of them is a pass.
+On the template's four-mark line: **PASS 37 (+20 conditional), FAIL 1 (producer-accepted nonblocking exception), BLOCKED 0, NOT RUN 2 (optional).** Another 1 PARTIAL (P-3) and 1 optional NOT VERIFIED result do not fit those four marks; neither is a pass.
 
-- **PASS:** P-1, P-2, P-5, T-1, T-2, M1-1, M1-6, U-5, U-6, A-1, A-2, A-3, A-5, A-6, A-7, MOB-3, MOB-4, MOB-5, N-2, N-4, N-5, N-6, L-1, L-2, L-3, L-4, C-1, C-2, C-3, C-4.
-- **PASS†:** M1-3, M1-4, M1-5, M1-7, M1-8, U-1, U-2, A-4, B-1 to B-5, D-1 to D-4, MOB-1, MOB-2, N-1, N-3.
-- **FAIL:** M1-2 (proposed Low/nonblocking disposition awaiting producer approval).
-- **PARTIAL:** P-3, U-3, U-4, U-7, MOB-6, MOB-7, C-5.
+- **PASS:** P-1, P-2, P-5, T-1, T-2, M1-1, M1-6, U-3, U-4, U-5, U-6, U-7, A-1, A-2, A-3, A-4, A-5, A-6, A-7, MOB-3, MOB-4, MOB-5, MOB-6, MOB-7, N-2, N-4, N-5, N-6, L-1, L-2, L-3, L-4, C-1, C-2, C-3, C-4, C-5.
+- **PASS†:** M1-3, M1-4, M1-5, M1-7, M1-8, U-1, U-2, B-1 to B-5, D-1 to D-4, MOB-1, MOB-2, N-1, N-3.
+- **FAIL:** M1-2 (producer formally accepted Low/nonblocking deviation; strict FAIL retained).
+- **PARTIAL:** P-3 (initial frozen checker mismatches two intentional candidate files; final P-5 candidate-adapted parity passed).
 - **BLOCKED:** none.
 - **NOT RUN:** MOB-8, MOB-9.
 - **NOT VERIFIED:** P-4 (optional).
 - **Added check X-1:** PASS (not counted in the 62).
 
+Changes from revision 5 (owner confirmations on 2026-11-03):
+- **PARTIAL → PASS:** U-3, U-4, U-7, MOB-6, MOB-7, C-5.
+- **PASS† → PASS:** A-4 (fresh one-request repeat, response and visual confirmation).
+- **M1-2:** strict FAIL retained, with formal producer acceptance of Low/nonblocking risk.
+- Other evidence and release-readiness questions remain open.
+
 Changes from revision 2:
 - **T-2:** NOT VERIFIED → PASS.
 - **L-3:** NOT VERIFIED → PASS.
 - **L-1:** BLOCKED → PASS, after the repeat with an unambiguous capture.
-- **M1-2:** stays FAIL (reproduced; disposition proposed, not approved).
+- **M1-2:** stayed FAIL when reproduced; disposition later approved in revision 6.
 - **P-5:** stays PASS, with the newer final run.
 
 Changes from revision 1:
@@ -288,8 +296,8 @@ Screenshot file names: not supplied.
 Reproduced: yes (original run and the repeat); exact count of fresh-Play tries not supplied.
 P-3 parity line at the time: 22 / 24 against the frozen table (expected for the candidate; see 3.1). P-5 at the end: 24 / 24 PASS (adapted).
 Notes: recorded as a strict FAIL, as instructed. No script was edited.
-  Proposed disposition (owner): Low severity, nonblocking deviation for M2; no visible gameplay
-  problem observed. Requires formal producer approval; not approved at the time of this report.
+  Disposition: producer explicitly approved Low-severity, nonblocking M2 deviation on 2026-11-03;
+  the strict QA result remains FAIL and no fix was made. No visible gameplay impact observed.
 ```
 
 **Reviewer analysis of F-1.** This is analysis, not a new observation, and no fix was made.
@@ -298,7 +306,7 @@ Notes: recorded as a strict FAIL, as instructed. No script was edited.
 - **What the repeat adds:** the camera's position and aim are as designed. Something writes `Focus` **every frame**: an explicit assignment reverted on the next RenderStepped. That contradicts the comment at `ArenaView.luau:421-422` that Scriptable cameras never update `Focus` on their own.
 - **What it does not establish:** which component writes it. A default camera script bound to the render step, or the engine itself, are possibilities.
 - **Impact.** `Camera.Focus` steers engine detail and streaming priorities, not what the player sees; the displacement is about 2.2 studs, and the owner observed no visible gameplay problem.
-- **Disposition.** Severity and disposition are for the reviewer and producer. The owner proposes **Low, nonblocking for M2**. Any code change, or a correction to the guide's expectation or the code comment, is outside this QA pass; no gameplay code was changed and Milestone 2.1 is not started.
+- **Disposition.** The producer formally approved **Low-severity, nonblocking for M2** on 2026-11-03. M1-2 remains **strict FAIL**, and the technical cause remains for independent review. This does not approve code changes, the candidate or PR merge; no gameplay code was changed and Milestone 2.1 is not started.
 - **Evidence still missing:** the verbatim C.3 and C.4 lines.
 
 ## 6. Open release-blocking questions
@@ -306,17 +314,17 @@ Notes: recorded as a strict FAIL, as instructed. No script was edited.
 | # | Question | Why it blocks | Status |
 |---|---|---|---|
 | R-1 | Which expected values did the P-5 checker use for `BigNum` and `BigNumTests`? | An unmodified Appendix B cannot pass with the candidate | **RESOLVED.** The checker was adapted with the candidate values (2.1), and the Output is quoted in section 2. The initial 22/24 was the intended difference. |
-| R-2 | (a) Confirm that no red Output line appeared during any test marked PASS or PASS†, ideally with the `QA_*.txt` files (guide 12.4). (b) Confirm the 21 PASS† rows: the category mapping in 3.2, MOB-1/MOB-2 (below) and A-4 (R-12). | Guide 0.3: PASS needs every condition observed, and any red line is a FAIL | Open |
-| R-3 | M1-2 (F-1) disposition: reproduced. Focus is overwritten every frame, and the camera is otherwise correct. The owner proposes accepting it as a **Low-severity, nonblocking M2 deviation**. Needed: formal producer approval of that disposition (or rejection), and the reviewer's classification (code defect, guide expectation, or Studio-dependent behaviour). The verbatim C.3 and C.4 lines would complete the record. | It remains a recorded FAIL until the disposition is formally approved | **Open: proposed disposition pending producer approval** |
+| R-2 | Confirm no unexpected red Output lines **across all PASS/PASS† tests**, preferably with `QA_*.txt` files, and check 20 remaining PASS† rows individually. The owner did explicitly confirm no red errors for L-1 and C-5. A-4 is now fully confirmed. | Guide 0.3 requires all conditions and no red errors | **OPEN, narrowed** |
+| R-3 | M1-2: reproduced Focus overwrite. **Producer formally accepted Low-severity/nonblocking deviation** on 2026-11-03, retaining strict FAIL. Reviewer may characterize source as code, guide or Studio issue. C.3/C.4 verbatim lines are still absent. | Producer exception addresses release-blocking disposition, but not underlying technical root cause / missing verbatim logs | **Producer disposition RESOLVED; technical/log follow-up open, producer-deemed nonblocking** |
 | R-4 | Repeat L-1 with unambiguous player identities | Per-player service cleanup on leave is a reliability and isolation requirement | **RESOLVED.** Repeated with Player2 captured through the bridge; `afterLeave` printed `currency=false combat=false level=nil session=false gold=nil`. L-1 PASS. |
 | R-5 | Run T-2 (negative control) and L-3 (restart is fresh). P-4 is optional. | Required tests with no result | **RESOLVED.** T-2 PASS (`1 FAILED, 67 passed`, then `ALL PASSED (67 tests)`); L-3 PASS. P-4 (optional) still has no result. |
-| R-6 | Is the incomplete U-4 (natural progression to level 25), with U-3, acceptable given that U-5 verified the boundary with granted Gold? Also: U-7's visual "nothing changes" condition. | Decision for the reviewer and producer (bounded precision contract, decision 1) | Open |
-| R-7 | Mobile:<br>• MOB-6: the 4th rotation and the PlayerGui duplicate-HUD check.<br>• MOB-7: iPhone 7 landscape.<br>• MOB-1/MOB-2: confirm "text is readable", given that text appeared small in portrait, and the notch/overlap conditions.<br>• MOB-3 and MOB-5: name the device; MOB-5 requires the notched phone. | Mobile is a primary platform. MOB-5/MOB-6 cover the audit's inset and rotation risks. | Open |
-| R-8 | C-5: confirm no noticeable slowdown and no red errors over the long session (Output file). | These are C-5 PASS conditions | Open |
+| R-6 | U-3/U-4/U-7: owner confirmed natural Level 1–25 play, the 23 Gold / 24→75 boundary, HUD/panel/real-hit agreement and unchanged resync UI. U-5 also verified boundary arithmetic. Detailed natural-run purchase log and popup not supplied. | Owner-reported PASS criteria now covered; evidence remains less granular than full Output | **RESOLVED by owner confirmations; detailed logs desirable** |
+| R-7 | MOB-6/MOB-7: owner confirmed final rotation, no duplicate HUD/panel, iPhone 7 landscape and tablet touch filtering; marked PASS on owner report. **Still open:** MOB-1/MOB-2 text readability, notch/overlap details; device identity in MOB-3/MOB-5; verbatim fourth rotation / `1/1` counts. | Mobile primary platform; independent acceptance needs clear evidence and notch verification | **PARTIALLY RESOLVED; remaining details open** |
+| R-8 | C-5: owner confirmed no slowdown, freezing or unexpected red errors through >10-min session; object counts previously matched. Output file not provided. | Owner-confirmed C-5 conditions | **RESOLVED by owner confirmation; logs desirable** |
 | R-9 | The tested code is the **DEFECT-001B candidate**, not the approved release.<br>**Done (native/offline, 2.2):** Codex's independent read-only review — BigNum technical verdict PASS WITH RISKS, no additional blocking numerical or serialization defect; native Luau 0.745 compilation of both changed files PASS; BigNum strict analysis (old and new solvers) PASS; test-body analysis with typed context adapters PASS; 67/67 offline in all four floating-point modes; historical probes 75/75 gradual and **74/75 FTZ** (outdated differential expectation).<br>**Done (Roblox Studio, 2.3):** Script Analysis on the saved candidate place: 0 Errors, 6 Warnings, 0 Information, 0 Hints; no diagnostics in `BigNum` or `BigNumTests`. The six warnings are identified and **provisionally** classified: four `DuplicateCondition` warnings in `RateLimiterTests` (lines 24 and 30) as analyzer false positives, and two `TypeError` warnings in `CombatClient` (53,19) for the possibly nil `Players.LocalPlayer` as a documented typing concern with no runtime failure observed. All six are pre-existing in frozen `e9d878d`.<br>**Still needed:**<br>• reviewer confirmation of the provisional warning classification, and a decision to fix or formally accept the `CombatClient` `Player?` typing concern (W-5, W-6);<br>• the producer's decision on the risks behind "PASS WITH RISKS";<br>• a reviewed revision of the pin, manifest round 4, the parity tables, the installer payload and the test count (67). | These QA results apply only to `9a988c9`'s `src/`. Codex did **not approve** candidate adoption, full QA acceptance or PR #1 merge readiness. | Open (independent review, native analysis and Studio Script Analysis evidence done; warning classification provisional; adoption NOT APPROVED) |
 | R-10 | Supply the missing setup facts: tester, Studio version, OS, install method, the test dates other than November 3, and the date of the 03:32 P-5. Also the screenshots: the N-6 capture and F-1. | Traceability required by guide 12.4 | Open |
 | R-11 | Confirm the H-check outcome (the H-4 line). The bridge was demonstrably used (L-1 repeat). Was that because the helpers were "not connected"? | Shows how the helper-based results (U-5, U-6, A-5, N-2 to N-6, C-3) reached the live game | Open (bridge use confirmed; H-4 result not reported) |
-| R-12 | A-4: was it the guide's single request with id 100 (`result id=100 InsufficientFunds`), or 100 separate requests? | 100 replies to 100 requests would contradict the 10-request burst limit that A-5 and A-6 show working | Open |
+| R-12 | A-4: initial test was 100 **separate** requests, later replaced by the exact one-request ID-100 test. Output at 04:00:35.259 shows `InsufficientFunds level=1`; Gold stayed 0 and red message appeared per owner. This is not evidence that 100 requests all got responses. | Guide procedure completed | **RESOLVED: A-4 PASS** |
 
 ## 7. Observations (not failures)
 
@@ -328,7 +336,7 @@ Notes: recorded as a strict FAIL, as instructed. No script was edited.
 - **L-2 and L-4:** Player2 was the remaining original player and Player3 the joining one, rather than the guide's Player1.
 - **Separate place file:** the QA place `Emberbound_M2_DEFECT001_QA.rbxl` is a candidate copy, as `DEFECT-001B_REPORT.md` §9 required; the original QA place was not to be changed.
 - **Temporary objects:** the temporary QA bridge was added for the L-1 repeat and deleted again; `EmptyTests` was deleted after T-2. The final P-5 (03:32:33.698) reports `extra scripts: 0`, so neither remained.
-- **M1-2:** an explicit Focus assignment reverts on the next RenderStepped frame. That contradicts the assumption in the code comment at `ArenaView.luau:421-422`, and is recorded for the reviewer (F-1).
+- **M1-2:** an explicit Focus assignment reverts on the next RenderStepped frame, contrary to the assumption in the code comment at `ArenaView.luau:421-422`. Producer accepted Low/nonblocking deviation, while strict FAIL remains (F-1).
 - **Provenance limit:** the Milestone 1 report (`QA_REPORT.md`) is a user-reported summary with no logs. This report shares that limit, except for the quoted Output lines.
 
 ## 8. For the independent (Codex) review
@@ -336,7 +344,7 @@ Notes: recorded as a strict FAIL, as instructed. No script was edited.
 Codex's read-only review of the candidate code is recorded in 2.2. For any further review of **this QA report**, review it read-only against `M2_STUDIO_REGRESSION_GUIDE.md` (as on PR #1 head `2b832d2`), the template, `review/DEFECT-001B_REPORT.md` and the code at `9a988c9`. In particular:
 1. Check every mark against the guide's PASS/FAIL rules (0.3). Nothing should be credited beyond the evidence stated in each row.
 2. Check the arithmetic in 3.3 against `ProgressionConfig`, `GameConfig` and Appendix E, and the deviations in 3.1 and 3.4.
-3. Assess F-1 (M1-2) from `ArenaView.luau:415-440` and the repeat evidence (Focus reverts every RenderStepped frame). Say whether it is a code defect, a guide error or a Studio-dependent risk, and comment on the owner's proposed Low/nonblocking disposition. Approving it is the producer's decision, not the reviewer's.
+3. Assess F-1 (M1-2) from `ArenaView.luau:415-440` and the repeat evidence (Focus reverts every RenderStepped frame). Say whether it is a code defect, a guide error or a Studio-dependent risk. The producer **already approved Low/nonblocking acceptance**; retain the strict FAIL, and evaluate any residual risk.
 4. Decide which items in section 6 are release-blocking for PR #1 and for adopting the DEFECT-001B candidate.
 
 Do not fabricate Studio output, do not merge, and do not mark Milestone 2 complete.
