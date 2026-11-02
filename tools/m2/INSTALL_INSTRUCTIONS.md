@@ -4,7 +4,8 @@ This guide is for the project owner. It replaces the manual copy-and-paste of 24
 
 | | |
 |---|---|
-| Installer file | `tools/m2/InstallM2.lua` on branch `feature/m2-tools-001-installer` |
+| Installer file | `tools/m2/InstallM2.lua` v1.1.0, at commit `adb939c6958786f95a6551bde7e4d689fd440aea` on branch `feature/m2-tools-001-installer` |
+| Installer SHA-256 | `87a22bb6cadcd0c374d928318f213e7719eaac86ffec8871966cecf2afe61cda` |
 | What it installs | Milestone 2 exactly as frozen at commit `e9d878d94155610558c9c6252d76f202dfd956b4`: 3 folders, 6 RemoteEvents, 24 scripts, and `Players.CharacterAutoLoads = false` |
 | Where it may run | Only a **new Baseplate saved to a file** on your computer, in **Edit mode** |
 | Default behaviour | **Check only.** It changes nothing until you switch on its one setting |
@@ -14,10 +15,10 @@ This guide is for the project owner. It replaces the manual copy-and-paste of 24
 
 ## 1. Download the installer
 
-1. Open <https://github.com/zelly-cious/Emberbound/blob/feature/m2-tools-001-installer/tools/m2/InstallM2.lua> (sign in to GitHub if asked).
+1. Open <https://github.com/zelly-cious/Emberbound/blob/adb939c6958786f95a6551bde7e4d689fd440aea/tools/m2/InstallM2.lua> (sign in to GitHub if asked). This link is pinned to the reviewed commit, so the file cannot change under you.
 2. Click the **Download raw file** button (the downward arrow at the top right of the file view). Save it somewhere easy to find, for example your Desktop. If your browser adds `.txt` to the name, that is fine.
    - Alternative: click **Raw**, then press **Ctrl+S** (Mac: **Cmd+S**) to save the page.
-3. Optional, but recommended: check that the download is complete and unchanged. Compare its SHA-256 with the `installer_sha256` line in [`tools/m2/INSTALLER_MANIFEST.txt`](INSTALLER_MANIFEST.txt):
+3. Optional, but recommended: check that the download is complete and unchanged. Its SHA-256 must be `87a22bb6cadcd0c374d928318f213e7719eaac86ffec8871966cecf2afe61cda` (also the `installer_sha256` line in [`tools/m2/INSTALLER_MANIFEST.txt`](INSTALLER_MANIFEST.txt)):
    - Windows PowerShell: `Get-FileHash -Algorithm SHA256 $HOME\Desktop\InstallM2.lua`
    - macOS Terminal: `shasum -a 256 ~/Desktop/InstallM2.lua`
 
