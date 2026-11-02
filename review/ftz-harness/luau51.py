@@ -382,7 +382,7 @@ EXPR_PREV_KW = {"return", "and", "or", "not"}
 CONTINUATION = {"..", "+", "-", "*", "/", "%", "^", "==", "~=", "<", ">", "<=", ">=", "and", "or", ".", ":", "(", "[", "{"}
 
 
-def expression_end(toks: list[Tok], i: int, stops: set[str]) -> int:
+def expression_end(toks: list[Tok], i: int, stops: set[str], if_expression: bool = False) -> int:
     """Index of the first depth-0 token at or after i that ends the expression."""
     depth = 0
     j = i
@@ -401,6 +401,10 @@ def expression_end(toks: list[Tok], i: int, stops: set[str]) -> int:
                 p, q = prev_sig(toks, j), next_sig(toks, j)
                 if q >= len(toks):
                     return j
+                # A multi-line if-expression continues on the line that starts with then/else/elseif.
+                if if_expression and toks[q].kind == "kw" and toks[q].text in stops and toks[q].text in ("then", "else", "elseif"):
+                    j += 1
+                    continue
                 if toks[p].text not in CONTINUATION and toks[q].text not in CONTINUATION:
                     return j
         j += 1
@@ -418,11 +422,11 @@ def convert_if_expressions(toks: list[Tok]) -> list[Tok]:
                 parts = []  # (cond, value) pairs, then the else value
                 j = i + 1
                 while True:
-                    then_at = expression_end(toks, j, {"then"})
+                    then_at = expression_end(toks, j, {"then"}, True)
                     if toks[then_at].text != "then":
                         raise TranslateError("if-expression without then")
                     cond = toks[j:then_at]
-                    value_end = expression_end(toks, then_at + 1, {"else", "elseif"})
+                    value_end = expression_end(toks, then_at + 1, {"else", "elseif"}, True)
                     parts.append((cond, toks[then_at + 1:value_end]))
                     if toks[value_end].text == "elseif":
                         j = value_end + 1

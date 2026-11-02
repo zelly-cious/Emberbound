@@ -7,6 +7,7 @@
 | Frozen source | `e9d878d94155610558c9c6252d76f202dfd956b4`, **unchanged** (`SOURCE_HASHES.txt` round 3 is not modified) |
 | Candidate | branch `candidate/m2-defect-001-ftz-subnormal`, based on PR #1 head `2b832d2` (whose `src/` equals `e9d878d`) |
 | Status | **Candidate only.** Offline evidence is complete; the Studio probe output has **not** been obtained yet (section 1). Not reviewed, not merged, Milestone 2 not complete. |
+| Update: DEFECT-001B | The owner's Edit-mode diagnostic later confirmed FTZ with no DAZ and the zero quotient. It also showed that the `tonumber` rebuild works, and that Studio's `string.format("%.17g")` prints subnormals as `"0"`. As a result, line 374 fails in Studio once line 364 passes. Linux FTZ does not show that, so the `line 374 … eq=true` expectation in section 8 was wrong for Studio. The follow-up correction, tests (67 in total) and probe v2 are in `review/DEFECT-001B_REPORT.md`; that report supersedes sections 5, 6, 8 and 9 here. |
 
 ## 1. Evidence status: read this first
 

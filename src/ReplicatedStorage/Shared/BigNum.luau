@@ -16,7 +16,9 @@
 
 	Values are frozen; create new ones with the functions below.
 	Canonical text (saves and network): "%.17g" of m, plus "e<exponent>" for
-	large values, e.g. "13", "0.5", "1.5e400".
+	large values, e.g. "13", "0.5", "1.5e400". Positive subnormal m (below
+	2.2250738585072014e-308) uses Luau's shortest round-trip tostring instead,
+	e.g. "5e-324" (DEFECT-001B).
 ]]
 
 -- Every BigNum is frozen at runtime (see make). The fields are not marked `read`, because the old
@@ -32,6 +34,7 @@ local SMALL_LOG_LIMIT = 16 -- below 10^16 a value may be computed with plain dou
 local MAX_EXACT_POWER_OF_TEN = 22 -- 10^22 is the largest power of ten a double holds exactly
 local IGNORE_GAP = 17 -- a value 17+ orders of magnitude smaller cannot change a sum or difference
 local MAX_TEXT_LENGTH = 64
+local MIN_NORMAL = 2.2250738585072014e-308 -- smallest positive normal double; positive values below it are subnormal
 local SUFFIXES = { "", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc" }
 
 local BigNum = {}
@@ -438,10 +441,21 @@ end
 -- Text
 ---------------------------------------------------------------------------
 
--- Canonical text used for saving and networking. parse(toString(x)) always equals x.
+--[[
+	Canonical text used for saving and networking. parse(toString(x)) always equals x.
+
+	DEFECT-001B: Roblox Studio's string.format printed "0" for the subnormal 5e-324 with
+	"%.17g", so its canonical text read back as zero. Positive subnormals therefore use Luau's
+	tostring, the shortest decimal text that reads back as exactly the same double ("5e-324"),
+	which Studio printed correctly. Zero, normal values and large values keep the "%.17g" text.
+]]
 function BigNum.toString(value: BigNum): string
 	if value.e == 0 then
-		return string.format("%.17g", value.m)
+		local m = value.m
+		if m > 0 and m < MIN_NORMAL then
+			return tostring(m)
+		end
+		return string.format("%.17g", m)
 	end
 	return string.format("%.17ge%.0f", value.m, value.e)
 end

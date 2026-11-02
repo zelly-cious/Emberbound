@@ -375,50 +375,202 @@ local tests: { TestKit.TestCase } = {
 			expectTrue(BigNum.lt(tiny, n(1e-300)), "ordered")
 		end,
 	},
-	-- DEFECT-001 regression tests. On a host that flushes subnormal results to zero (FTZ),
-	-- results rebuilt from scientific form below 2.2250738585072014e-308 used to come out as 0.
-	-- Expected values are exact in both floating-point modes (checked offline with FTZ on and off).
-	{
-		name = "subnormal results rebuilt from scientific form are not flushed to zero",
-		run = function()
-			local cases = {
-				{ "5e-30", 5e-324 }, -- the smallest positive double
-				{ "3e-30", 5e-324 }, -- rounds up to it
-				{ "1e-29", 1e-323 }, -- twice the smallest positive double
-				{ "1e-26", 1e-320 },
-				{ "1.5e-23", 1.5e-317 },
-				{ "1e-16", 1e-310 },
-				{ "1.1125369292536007e-14", 1.1125369292536007e-308 }, -- half the smallest normal
-			}
-			for _, case in cases do
-				local value = BigNum.div(p(case[1]), p("1e294"))
-				expectTrue(BigNum.isValid(value) and not BigNum.isZero(value), `{case[1]} / 1e294 is a positive BigNum`)
-				expectTrue(BigNum.eq(value, n(case[2])), `{case[1]} / 1e294 equals {case[2]}`)
-			end
-			expectTrue(BigNum.eq(BigNum.div(p("1.5"), p("1e310")), n(1.5e-310)), "1.5 / 1e310")
-			expectTrue(BigNum.eq(BigNum.div(p("3"), p("1e310")), n(3e-310)), "3 / 1e310")
-		end,
-	},
-	{
-		name = "the normal boundary and genuine underflow are unchanged",
-		run = function()
-			local smallestNormal = n(2.2250738585072014e-308)
-			expectTrue(BigNum.eq(BigNum.div(p("2.2250738585072014e-14"), p("1e294")), smallestNormal), "smallest normal")
-			-- Just below it, the floating-point mode decides the last step (bounded precision contract):
-			-- the result is the largest subnormal or the smallest normal, and never zero.
-			local largestSubnormal = BigNum.div(p("2.2250738585072009e-14"), p("1e294"))
-			expectTrue(
-				BigNum.eq(largestSubnormal, n(2.2250738585072009e-308)) or BigNum.eq(largestSubnormal, smallestNormal),
-				"largest subnormal stays within one step"
-			)
-			-- Below half of 5e-324 the exact result rounds to zero in every mode.
-			for _, case in { { "1e-30", "1e294" }, { "2e-30", "1e294" }, { "2.4e-30", "1e294" }, { "5", "1e330" }, { "1e-30", "1e400" } } do
-				local value = BigNum.div(p(case[1]), p(case[2]))
-				expectTrue(BigNum.isZero(value) and BigNum.eq(value, BigNum.zero), `{case[1]} / {case[2]} underflows to zero`)
-			end
-		end,
-	},
 }
+
+--[[
+	Candidate regression tests for DEFECT-001 (arithmetic) and DEFECT-001B (canonical text).
+	They are appended after the original list so the original assertions keep their line numbers
+	(BigNumTests.luau:364 and :374 above), and each is its own test, so an arithmetic failure
+	cannot hide a serialization failure.
+
+	Roblox Studio runs with flush-to-zero: subnormal arithmetic results become 0 (subnormal
+	inputs are kept), and its string.format printed "0" for 5e-324 with "%.17g". The subnormal
+	fixtures are therefore built from IEEE-754 bit patterns, not computed. Expected values hold in
+	both floating-point modes (checked offline with FTZ on and off, and with the Studio formatter
+	behaviour modeled).
+]]
+
+type DivisionCase = {
+	dividend: string,
+	divisor: string,
+	expected: number,
+}
+
+type UnderflowCase = {
+	dividend: string,
+	divisor: string,
+}
+
+type SerializationFixture = {
+	label: string,
+	value: BigNum,
+	subnormal: boolean,
+}
+
+local MIN_NORMAL = 2.2250738585072014e-308 -- smallest positive normal double
+
+-- The binary64 value with this IEEE-754 bit pattern (high and low 32-bit words). Only bytes are
+-- copied, with no floating-point arithmetic, so a flush-to-zero host cannot alter the value.
+local function fromBits(high: number, low: number): number
+	local bytes = buffer.create(8)
+	buffer.writeu32(bytes, 0, low)
+	buffer.writeu32(bytes, 4, high)
+	return buffer.readf64(bytes, 0)
+end
+
+local SMALLEST_SUBNORMAL = fromBits(0x00000000, 0x00000001) -- 4.9406564584124654e-324
+local NEXT_SUBNORMAL = fromBits(0x00000000, 0x00000002) -- 9.8813129168249309e-324
+local SUBNORMAL_1E_320 = fromBits(0x00000000, 0x000007E8) -- nearest double to 1e-320
+local SUBNORMAL_1E_310 = fromBits(0x00001268, 0x8B70E62B) -- nearest double to 1e-310
+local LARGEST_SUBNORMAL = fromBits(0x000FFFFF, 0xFFFFFFFF) -- 2.2250738585072009e-308
+local SMALLEST_NORMAL = fromBits(0x00100000, 0x00000000) -- 2.2250738585072014e-308
+
+local function serializationFixtures(): { SerializationFixture }
+	return {
+		{ label = "smallest positive double (bits 0x1)", value = n(SMALLEST_SUBNORMAL), subnormal = true },
+		{ label = "next subnormal (bits 0x2)", value = n(NEXT_SUBNORMAL), subnormal = true },
+		{ label = "1e-320 (bits 0x7E8)", value = n(SUBNORMAL_1E_320), subnormal = true },
+		{ label = "1e-310 (bits 0x000012688B70E62B)", value = n(SUBNORMAL_1E_310), subnormal = true },
+		{ label = "largest subnormal (bits 0x000FFFFFFFFFFFFF)", value = n(LARGEST_SUBNORMAL), subnormal = true },
+		{ label = "smallest normal (bits 0x0010000000000000)", value = n(SMALLEST_NORMAL), subnormal = false },
+		{ label = "zero", value = BigNum.zero, subnormal = false },
+		{ label = "zero from bits", value = n(fromBits(0, 0)), subnormal = false },
+		{ label = "1e-300", value = n(1e-300), subnormal = false },
+		{ label = "0.1", value = n(0.1), subnormal = false },
+		{ label = "0.5", value = n(0.5), subnormal = false },
+		{ label = "1", value = n(1), subnormal = false },
+		{ label = "13", value = n(13), subnormal = false },
+		{ label = "123456.789", value = n(123456.789), subnormal = false },
+		{ label = "1e15", value = n(1e15), subnormal = false },
+		{ label = "2^53 - 1", value = n(TWO_POW_53 - 1), subnormal = false },
+		{ label = "2^53 (first large value)", value = n(TWO_POW_53), subnormal = false },
+		{ label = "1e16", value = p("1e16"), subnormal = false },
+		{ label = "largest double", value = n(fromBits(0x7FEFFFFF, 0xFFFFFFFF)), subnormal = false },
+		{ label = "1.5e400", value = p("1.5e400"), subnormal = false },
+		{ label = "7.25e1000", value = p("7.25e1000"), subnormal = false },
+		{ label = "1e9007199254740991 (largest exponent)", value = p("1e9007199254740991"), subnormal = false },
+	}
+end
+
+table.insert(tests, {
+	name = "subnormal results rebuilt from scientific form are not flushed to zero",
+	run = function()
+		local cases: { DivisionCase } = {
+			{ dividend = "5e-30", divisor = "1e294", expected = 5e-324 }, -- the smallest positive double
+			{ dividend = "3e-30", divisor = "1e294", expected = 5e-324 }, -- rounds up to it
+			{ dividend = "1e-29", divisor = "1e294", expected = 1e-323 }, -- twice the smallest positive double
+			{ dividend = "1e-26", divisor = "1e294", expected = 1e-320 },
+			{ dividend = "1.5e-23", divisor = "1e294", expected = 1.5e-317 },
+			{ dividend = "1e-16", divisor = "1e294", expected = 1e-310 },
+			{ dividend = "1.1125369292536007e-14", divisor = "1e294", expected = 1.1125369292536007e-308 }, -- half the smallest normal
+			{ dividend = "1.5", divisor = "1e310", expected = 1.5e-310 },
+			{ dividend = "3", divisor = "1e310", expected = 3e-310 },
+		}
+		for _, case in cases do
+			local value = BigNum.div(p(case.dividend), p(case.divisor))
+			expectTrue(BigNum.isValid(value) and not BigNum.isZero(value), `{case.dividend} / {case.divisor} is a positive BigNum`)
+			expectTrue(BigNum.eq(value, n(case.expected)), `{case.dividend} / {case.divisor} equals {case.expected}`)
+		end
+	end,
+})
+
+table.insert(tests, {
+	name = "the normal boundary and genuine underflow are unchanged",
+	run = function()
+		local smallestNormal = n(2.2250738585072014e-308)
+		expectTrue(BigNum.eq(BigNum.div(p("2.2250738585072014e-14"), p("1e294")), smallestNormal), "smallest normal")
+		-- Just below it, the floating-point mode decides the last step (bounded precision contract):
+		-- the result is the largest subnormal or the smallest normal, and never zero.
+		local largestSubnormal = BigNum.div(p("2.2250738585072009e-14"), p("1e294"))
+		expectTrue(
+			BigNum.eq(largestSubnormal, n(2.2250738585072009e-308)) or BigNum.eq(largestSubnormal, smallestNormal),
+			"largest subnormal stays within one step"
+		)
+		-- Below half of 5e-324 the exact result rounds to zero in every mode.
+		local underflows: { UnderflowCase } = {
+			{ dividend = "1e-30", divisor = "1e294" },
+			{ dividend = "2e-30", divisor = "1e294" },
+			{ dividend = "2.4e-30", divisor = "1e294" },
+			{ dividend = "5", divisor = "1e330" },
+			{ dividend = "1e-30", divisor = "1e400" },
+		}
+		for _, case in underflows do
+			local value = BigNum.div(p(case.dividend), p(case.divisor))
+			expectTrue(BigNum.isZero(value) and BigNum.eq(value, BigNum.zero), `{case.dividend} / {case.divisor} underflows to zero`)
+		end
+	end,
+})
+
+table.insert(tests, {
+	name = "subnormal fixtures built from IEEE-754 bits are the intended doubles",
+	run = function()
+		-- A host that reads subnormal inputs as zero (DAZ) fails here, before any serialization check.
+		local ordered = { SMALLEST_SUBNORMAL, NEXT_SUBNORMAL, SUBNORMAL_1E_320, SUBNORMAL_1E_310, LARGEST_SUBNORMAL }
+		for index, value in ordered do
+			expectTrue(value > 0 and value < MIN_NORMAL, `subnormal fixture {index} is positive and below the smallest normal`)
+			if index > 1 then
+				expectTrue(value > ordered[index - 1], `subnormal fixture {index} is larger than fixture {index - 1}`)
+			end
+		end
+		expectTrue(SMALLEST_NORMAL == MIN_NORMAL, "bits 0x0010000000000000 are the smallest normal")
+		expectTrue(fromBits(0x3FF00000, 0) == 1, "bits 0x3FF0000000000000 are 1")
+		expectTrue(fromBits(0, 0) == 0, "bits 0 are zero")
+	end,
+})
+
+table.insert(tests, {
+	name = "canonical text round-trips exactly for subnormal, boundary, ordinary and large values",
+	run = function()
+		-- DEFECT-001B: Studio printed the smallest positive double as "0", so it read back as zero.
+		for _, fixture in serializationFixtures() do
+			if fixture.subnormal then
+				expectTrue(not BigNum.isZero(fixture.value), `{fixture.label}: the fixture BigNum is not zero`)
+			end
+			local text = s(fixture.value)
+			local back = BigNum.parse(text)
+			expectTrue(back ~= nil, `{fixture.label}: parse("{text}") returns a BigNum`)
+			local parsed = back :: BigNum
+			expectTrue(BigNum.isValid(parsed), `{fixture.label}: parse("{text}") is valid`)
+			expectTrue(BigNum.eq(parsed, fixture.value), `{fixture.label}: parse(toString(x)) equals x (text "{text}")`)
+			expectEqual(s(parsed), text, `{fixture.label}: toString(parse(toString(x))) is unchanged`)
+		end
+	end,
+})
+
+table.insert(tests, {
+	name = "canonical text of zero, normal and large values keeps its existing form",
+	run = function()
+		expectEqual(s(BigNum.zero), "0")
+		expectEqual(s(n(0.5)), "0.5")
+		expectEqual(s(n(13)), "13")
+		expectEqual(s(n(TWO_POW_53 - 1)), "9007199254740991")
+		expectEqual(s(p("1.5e400")), "1.5e400")
+		expectEqual(s(p("7.25e1000")), "7.25e1000")
+		expectEqual(s(p("1e9007199254740991")), "1e9007199254740991")
+		-- Every non-subnormal value still uses the "%.17g" text, the smallest normal included.
+		for _, fixture in serializationFixtures() do
+			if not fixture.subnormal then
+				local value = fixture.value
+				local expected = if value.e == 0
+					then string.format("%.17g", value.m)
+					else string.format("%.17ge%.0f", value.m, value.e)
+				expectEqual(s(value), expected, `{fixture.label}: canonical text`)
+			end
+		end
+	end,
+})
+
+table.insert(tests, {
+	name = "text below half the smallest positive double still reads as zero",
+	run = function()
+		for _, text in { "2e-324", "2.4e-324", "1e-330", "1e-400" } do
+			local value = p(text)
+			expectTrue(BigNum.isZero(value) and BigNum.eq(value, BigNum.zero), `"{text}" reads as zero`)
+			expectEqual(s(value), "0", `"{text}" prints as zero`)
+		end
+		expectTrue(BigNum.eq(p("3e-324"), n(SMALLEST_SUBNORMAL)), `"3e-324" rounds up to the smallest positive double`)
+	end,
+})
 
 return {
 	name = "BigNumTests",
