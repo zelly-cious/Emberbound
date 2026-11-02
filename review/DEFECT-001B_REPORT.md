@@ -7,6 +7,7 @@
 | Prior candidate | `8626bc70ff905975fbc8069b4f951762f15cdefd` (DEFECT-001: arithmetic rebuild in `multiplyByPowerOfTen`), kept unchanged |
 | This candidate | branch `candidate/m2-defect-001-ftz-subnormal`, the commit that adds this report (parent `8626bc7`) |
 | Status | **Candidate only.** Offline evidence is complete. The Server Play-mode diagnostic has **not** been supplied, and this candidate has **never run in Roblox Studio**. Not reviewed, not merged, Milestone 2 not complete. |
+| Update: round 4 adoption | **Later evidence, recorded after this report.** This report's original text below is unchanged.<br>• Roblox Studio QA of `9a988c9`: 67/67 unit tests, and a final candidate-adapted P-5 PASS (`review/M2_STUDIO_QA_RESULTS.md`, QA branch commit `ae861bd`).<br>• Codex's independent read-only review: **PASS WITH RISKS**; native Luau 0.745 compilation and strict analysis PASS; offline 67/67 in four modes; historical probes **75/75 gradual, 74/75 FTZ** (an outdated differential expectation).<br>• These native results **supersede** this report's translated-harness figure of 75/75 under FTZ, and its statement (section 8) that native Luau checks were not run.<br>• The producer directed adoption: the candidate's `src/` is now `SOURCE_HASHES.txt` round 4 (`review/M2_BIGNUM_ADOPTION_ROUND4.md`). |
 
 ## 1. Evidence: what is from Studio, and what is offline
 

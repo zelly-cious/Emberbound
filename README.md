@@ -28,7 +28,7 @@ Background: `M1_REQUIREMENTS.md` and `QA_REPORT.md` (Milestone 1 contract and us
 ## Re-running the offline checks
 
 ```bash
-review/offline-harness/run.sh unit   path/to/luau     # the shipped 61 tests, via the real TestRunner
+review/offline-harness/run.sh unit   path/to/luau     # the shipped 67 tests, via the real TestRunner
 review/offline-harness/run.sh probes path/to/luau     # 75 review probes (54 original + 21 for the corrections)
 ```
 

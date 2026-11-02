@@ -1,6 +1,41 @@
 # SHA-256 manifests (LF line endings, as stored in git)
 
-## Round 3 — comment-only correction (24 files; current)
+## Round 4 — BigNum DEFECT-001/001B adoption, source commit 9a988c9 (24 files; current)
+
+Producer-directed adoption of the reviewed BigNum candidate `9a988c9254e07ac50dcf32fe4b55ba975613390d`
+(branch `candidate/m2-defect-001-ftz-subnormal`). Two files differ from round 3:
+`src/ReplicatedStorage/Shared/BigNum.luau` (subnormal rebuild in `multiplyByPowerOfTen` for flush-to-zero hosts,
+and `BigNum.toString` writes positive subnormals with Luau's shortest round-trip `tostring`) and
+`src/ServerScriptService/Tests/BigNumTests.luau` (6 regression tests added; 67 tests in total).
+The other 22 files are unchanged from round 3. Evidence: `review/DEFECT-001_REPORT.md`, `review/DEFECT-001B_REPORT.md`,
+`review/M2_BIGNUM_ADOPTION_ROUND4.md`, and the M2 Studio QA report (QA branch commit `ae861bd`).
+
+e337573da95f481a022ed0e6f31dfefdacb0755921214cdb89cdb53d8e08f674  src/ReplicatedStorage/Shared/BigNum.luau
+2cefa5f694865e6682a8a9d8f04d0d1885499829ee1466a4dc227c9b4f070591  src/ReplicatedStorage/Shared/GameConfig.luau
+7d6483b06a155ca93bd2c408004cf2a3dd9bd797ca4d224cb69a4f1ba041ea80  src/ReplicatedStorage/Shared/ProgressionConfig.luau
+1e18a1a78f25cbee8e325e6356a6875d3944db9f51604ec2d8f059d26a2a1d37  src/ServerScriptService/CombatRules.luau
+60988bb1184f298c4567fa1840e6f11687b7ad3ddcb469ab108980c999a3b168  src/ServerScriptService/CombatService.luau
+3a6bb75a0d93fb373fc2babfc481a39a680a48cf6f442c563f1f091e7d78c4d0  src/ServerScriptService/CurrencyService.luau
+81d56e8e9cab0264b0d74d01977845153f70ec6848afc51887882e461e66d646  src/ServerScriptService/PlayerSessionService.luau
+493d3758fd52adb6cca7a9bbb6e61831219fce75c4c9ee45e3ce1d3cf2a3e296  src/ServerScriptService/RateLimiter.luau
+cdc062557c5b3e3a796058c343b5622c8974dfb3727323809aafbf88156b7f98  src/ServerScriptService/ServerInit.luau
+8d28a9bf19fa29cf3ccf53dc5dd066f2777ef85548a35911b19f1feab4113b51  src/ServerScriptService/Tests/BigNumTests.luau
+91b557d4c31584050ef8589586439a04771279f34f25f842fd88b812311f56bb  src/ServerScriptService/Tests/CombatFormulaTests.luau
+5f2bd8ac8ce428334aefa5780760a86e96b3539f451dd4f34046c4be48900827  src/ServerScriptService/Tests/CombatRulesTests.luau
+8d019e1c842334f5692c6debb59933268f50965678281beb33b6ccd814a9e953  src/ServerScriptService/Tests/ProgressionTests.luau
+0a9b237905367c963dd3f83aefaf668295105de941f716c5d516e08c11ec1faa  src/ServerScriptService/Tests/RateLimiterTests.luau
+da6a4882d5177dc5537871a3aff302b2692e0fcd293e18f4993f6b763ccea969  src/ServerScriptService/Tests/TestKit.luau
+74454d4a387afc7c9f7eecbf801506c9fb089528298c3ee4c64b1bc200198bd0  src/ServerScriptService/Tests/TestKitTests.luau
+e3a24f14a5a5a14bd9838502eea7a5b8111480e596a2c894db0701af6b96c512  src/ServerScriptService/Tests/TestRunner.luau
+5c8713a664951176f02104f3461899c08d9677ddfa51201b3b8c06147c783fb6  src/ServerScriptService/Tests/WalletTests.luau
+489bfa3f97555790c69bdb5adf7d758be0230a54eda5cfdf50916c689e00bb8f  src/ServerScriptService/UpgradeService.luau
+98fb07db5e0dbefb87e35e606e40aba98257bf9e0209b513b4ba372f2d16634c  src/ServerScriptService/Wallet.luau
+fb56fece6ba29d4ea31ef308a4de775355c1079f7266d882d42a828e190c67ca  src/StarterPlayer/StarterPlayerScripts/CombatClient.luau
+b3e05e45d0c907b4242b05b055d11dc1105cb0f2733fd3351e8130b63f7495e0  src/StarterPlayer/StarterPlayerScripts/CombatClient/ArenaView.luau
+3da101a67005c8957e993f370eb8c15bf20dca37c2b5be220eace41341ce3314  src/StarterPlayer/StarterPlayerScripts/CombatClient/CombatHud.luau
+45f9380a7cc4376bbc5ce8025c4d9692244dd32059a45a3e033af045478fb5f5  src/StarterPlayer/StarterPlayerScripts/CombatClient/UpgradePanel.luau
+
+## Round 3 — comment-only correction (24 files; historical)
 
 Producer-authorized correction of one comment line in `src/ServerScriptService/CombatService.luau` (BigNum precision wording).
 No executable change: the file compiles to byte-identical Luau bytecode, and the other 23 files are unchanged from round 2.

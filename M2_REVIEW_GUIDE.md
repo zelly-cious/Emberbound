@@ -213,11 +213,11 @@ Mark each item confirmed-by-source, needs-Studio-test, or defect.
 
 **Not performed during this handoff.** Run in Studio with the place built from `src/` and the six RemoteEvents created. Use *Test → Clients and Servers* (2 players) for S6.
 
-The full beginner procedure, with source-parity verification against `SOURCE_HASHES.txt` (round 3, current) and a results template, is `M2_STUDIO_REGRESSION_GUIDE.md` and `review/M2_STUDIO_QA_RESULTS_TEMPLATE.md`. The S-numbered list below is the short summary. No Studio test has been run yet.
+The full beginner procedure, with source-parity verification against `SOURCE_HASHES.txt` (round 4, current) and a results template, is `M2_STUDIO_REGRESSION_GUIDE.md` and `review/M2_STUDIO_QA_RESULTS_TEMPLATE.md`. The S-numbered list below is the short summary. The first Studio QA run, on candidate `9a988c9` (now the round 4 source), is recorded in `review/M2_STUDIO_QA_RESULTS.md` (QA branch commit `ae861bd`).
 
 | # | Test | Expected |
 |---|---|---|
-| S0 | Press Play; read Output | `[Tests] ALL PASSED (61 tests)` with 7 suites listed; no red errors; no `Missing RemoteEvent` errors |
+| S0 | Press Play; read Output | `[Tests] ALL PASSED (67 tests)` with 7 suites listed; no red errors; no `Missing RemoteEvent` errors |
 | S1 | M1 regression: 10 taps at stage 1 | 10/10 → 0, one defeat, `+5 Gold`, stage 2 shows 11 HP; stage 3 shows 13 HP and pays 6 |
 | S2 | Upgrade panel at 0 Gold | Button reads `Need 5 Gold`, does nothing; panel shows Level 1, Tap Damage 1, Next 2 damage |
 | S3 | Earn 5 Gold, press Upgrade | Gold 5 → 0, Level 2, Tap Damage 2 in HUD and panel, `Upgraded!`; slime now takes 2 per tap |

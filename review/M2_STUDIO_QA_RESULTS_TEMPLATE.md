@@ -11,7 +11,7 @@ Copy this file (for example to `review/M2_STUDIO_QA_RESULTS.md`), then fill it i
 | Roblox Studio version | |
 | Computer and OS | |
 | Place file name | |
-| Code tested | `src/` at `e9d878d94155610558c9c6252d76f202dfd956b4` (`SOURCE_HASHES.txt` round 3; same `src/` as the PR #1 head) |
+| Code tested | `src/` at `9a988c9254e07ac50dcf32fe4b55ba975613390d` (`SOURCE_HASHES.txt` round 4; same `src/` as the round 4 adoption branch `feature/m2-bignum-adoption-round4`) |
 | How the scripts were installed | manual copy / ZIP / other: |
 | P-3 result (copy the two `[Parity]` lines) | |
 | P-5 result (copy the two `[Parity]` lines) | |
@@ -28,7 +28,7 @@ Copy this file (for example to `review/M2_STUDIO_QA_RESULTS.md`), then fill it i
 | P-3 | Source-parity check | | |
 | P-4 | Downloaded files' SHA-256 (optional) | | |
 | P-5 | Final parity re-check | | |
-| T-1 | 61 tests in 7 suites pass | | |
+| T-1 | 67 tests in 7 suites pass | | |
 | T-2 | Broken test module is a failure | | |
 | M1-1 | Clean startup | | |
 | M1-2 | No avatar, fixed camera | | |

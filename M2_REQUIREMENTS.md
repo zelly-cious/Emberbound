@@ -1,7 +1,7 @@
 # Milestone 2 — Frozen scope and acceptance contract
 
 **Milestone:** Tap Upgrades, Economy & BigNum
-**Implementation under review:** commit `024cd68838d6c34633a00e7eadcb320c251186f0` on `feature/m2-tap-upgrades-bignum`, corrected for audit findings F1–F6 in `e4b01088b953acb7f5d31b77cbf4e3f5b5e8adcf` (`review/M2_CORRECTIONS_REPORT.md`). After Codex's round 2 re-review of PR head `09be466` (CONDITIONAL PASS), the producer recorded the precision contract and two conditional deferrals below (1 Nov 2026); the only later source change is one comment line in `CombatService.luau` (no executable change; `SOURCE_HASHES.txt` round 3).
+**Implementation under review:** commit `024cd68838d6c34633a00e7eadcb320c251186f0` on `feature/m2-tap-upgrades-bignum`, corrected for audit findings F1–F6 in `e4b01088b953acb7f5d31b77cbf4e3f5b5e8adcf` (`review/M2_CORRECTIONS_REPORT.md`). After Codex's round 2 re-review of PR head `09be466` (CONDITIONAL PASS), the producer recorded the precision contract and two conditional deferrals below (1 Nov 2026); later source changes: one comment line in `CombatService.luau` (no executable change; `SOURCE_HASHES.txt` round 3), then the adopted BigNum DEFECT-001/001B correction from `9a988c9254e07ac50dcf32fe4b55ba975613390d` (`BigNum.luau` and `BigNumTests.luau` only; `SOURCE_HASHES.txt` round 4, current; see `review/M2_BIGNUM_ADOPTION_ROUND4.md`).
 **Baseline:** Milestone 1 at `730218a` (includes the ClientReady sync-retry fix and the `Camera.Focus` fix)
 
 Sources: *Emberbound — Technical Architecture & Roadmap* (31 Oct 2026, M2 section and "Large numbers") and *Emberbound — Master Spec V1.0 Architecture Review* (31 Oct 2026), which supersedes the roadmap where they conflict. Neither PDF is in this repository; the requirements they impose on M2 are restated here so the reviewer needs nothing else.
@@ -20,7 +20,7 @@ Sources: *Emberbound — Technical Architecture & Roadmap* (31 Oct 2026, M2 sect
 |---|---|
 | Upgrades raise tap damage | `UpgradeService.handlePurchaseRequest` → `CombatService.SetTapDamage`; Studio test S3 |
 | Spamming the upgrade remote never drives Gold negative | `Wallet.trySpend`, `BigNum.trySub`, `RateLimiter`; probes 5d–5f; Studio test S4 |
-| BigNum tests pass | `ServerScriptService/Tests` (61 tests since the corrections; 48 in round 1); offline runs in `review/M2_CORRECTIONS_REPORT.md` and, for round 1, `review/M2_CHECK_RESULTS.md` |
+| BigNum tests pass | `ServerScriptService/Tests` (67 tests since the round 4 BigNum adoption; 61 after the round 2 corrections; 48 in round 1); offline runs in `review/M2_CORRECTIONS_REPORT.md` and, for round 1, `review/M2_CHECK_RESULTS.md` |
 | Milestone 1's stage table is unchanged | `GameConfig.GetEnemyMaxHp` / `GetGoldReward`; probe section 3; Studio test S1 |
 
 Milestone 1 behaviour that must still hold: stage 1 starts at 0 Gold and tap damage 1; Forest Slime 10/10 HP; 10 accepted taps defeat it once and award 5 Gold once; stage 2 = 11 HP / 5 Gold, stage 3 = 13 HP / 6 Gold; 0.07 s server tap cooldown; per-player isolation; no avatar, fixed camera.

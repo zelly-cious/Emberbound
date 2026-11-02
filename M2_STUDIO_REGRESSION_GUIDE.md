@@ -4,13 +4,14 @@ A beginner-friendly, step-by-step checklist for testing Milestone 2 (Tap Upgrade
 
 | | |
 |---|---|
-| Code under test | `src/` at commit `e9d878d94155610558c9c6252d76f202dfd956b4`: the round 2 corrections (`e4b0108`) plus one comment-only line in `CombatService.luau` (no executable change; `SOURCE_HASHES.txt` round 3). The PR #1 head that adds this guide has identical `src/`. |
+| Code under test | `src/` at commit `9a988c9254e07ac50dcf32fe4b55ba975613390d` (`SOURCE_HASHES.txt` round 4, current). This is the round 3 source (`e9d878d`) with the adopted BigNum DEFECT-001/001B correction, which changes only `BigNum.luau` and `BigNumTests.luau`. The round 4 adoption branch `feature/m2-bignum-adoption-round4` has identical `src/`. |
+| Guide revision | **Round 4.** Updated for the adopted BigNum correction: source pin, Appendix A/B values, 67 unit tests. The round 3 version of this guide (pinned to `e9d878d`, 61 tests) is historical; see commit `2b832d2`. |
 | Files | 24 Luau source files, 6 RemoteEvents, 3 Folders (Appendix A) |
-| Unit tests | 61 tests in 7 suites, run automatically by `Tests/TestRunner` when you press Play in Studio |
+| Unit tests | 67 tests in 7 suites, run automatically by `Tests/TestRunner` when you press Play in Studio |
 | Where to record results | `review/M2_STUDIO_QA_RESULTS_TEMPLATE.md` (copy it, then fill it in) |
 | Not allowed during this testing | Editing any of the 24 scripts, merging PR #1, starting Milestone 2.1 |
 
-**Important:** this guide was written from the source code and the offline review results. **Nobody has run it in Roblox Studio yet.** The expected results are predictions from the code. If Studio shows something different, that is exactly what we need to know: record it as a FAIL with evidence; do not change the expected result to match.
+**Important:** this guide was first written from the source code and the offline review results. Its first Roblox Studio run tested candidate `9a988c9`, which is now the round 4 source, and is recorded in `review/M2_STUDIO_QA_RESULTS.md` (QA branch commit `ae861bd`). The expected results are predictions from the code. If Studio shows something different, that is exactly what we need to know: record it as a FAIL with evidence; do not change the expected result to match.
 
 ---
 
@@ -19,7 +20,7 @@ A beginner-friendly, step-by-step checklist for testing Milestone 2 (Tap Upgrade
 0. [Read first: decision status, rules, how to mark results](#0-read-first)
 1. [Studio basics for beginners](#1-studio-basics-for-beginners)
 2. [Install the place and verify source parity (24 files)](#2-install-the-place-and-verify-source-parity)
-3. [Run the 61 unit tests](#3-run-the-61-unit-tests)
+3. [Run the 67 unit tests](#3-run-the-67-unit-tests)
 4. [QA helpers you will paste into the Command Bar](#4-qa-helpers)
 5. [Milestone 1 gameplay regression](#5-milestone-1-gameplay-regression)
 6. [Milestone 2 purchases and damage (including level 24 → 25)](#6-milestone-2-purchases-and-damage)
@@ -134,8 +135,8 @@ You will build a fresh place by hand and then prove, with a checksum, that all 2
 
 Use this exact commit so the code cannot change under you:
 
-- Browse: <https://github.com/zelly-cious/Emberbound/tree/e9d878d94155610558c9c6252d76f202dfd956b4/src>
-- Or download everything as a ZIP: <https://github.com/zelly-cious/Emberbound/archive/e9d878d94155610558c9c6252d76f202dfd956b4.zip>
+- Browse: <https://github.com/zelly-cious/Emberbound/tree/9a988c9254e07ac50dcf32fe4b55ba975613390d/src>
+- Or download everything as a ZIP: <https://github.com/zelly-cious/Emberbound/archive/9a988c9254e07ac50dcf32fe4b55ba975613390d.zip>
 
 To copy one file from GitHub: open the file, then click the **Copy raw file** button (two overlapping squares, top-right of the file view). This copies the exact contents. If you use the ZIP instead, open each `.luau` file in a plain-text editor (Notepad, TextEdit in plain-text mode, VS Code), press Ctrl+A, then Ctrl+C. **Never** copy through Word or Google Docs.
 
@@ -198,11 +199,11 @@ Tips:
 
 Fix and re-run until it passes. **Do not start Session 1 until P-3 passes.** Copy the final two `[Parity]` lines into your results file.
 
-How the check works: for each script it normalizes line endings and trailing blank space at the end of the file, then compares the byte count, line count and an Adler-32 checksum with values computed from the exact bytes whose SHA-256 is listed in `SOURCE_HASHES.txt` (round 3 section, current). All 24 files at `e9d878d` match that manifest and are already in normalized form, so a pass means the Studio text equals the reviewed files.
+How the check works: for each script it normalizes line endings and trailing blank space at the end of the file, then compares the byte count, line count and an Adler-32 checksum with values computed from the exact bytes whose SHA-256 is listed in `SOURCE_HASHES.txt` (round 4 section, current). All 24 files at `9a988c9` match that manifest and are already in normalized form, so a pass means the Studio text equals the reviewed files.
 
 ### 2.5 P-4 (optional) Check the downloaded files' SHA-256
 
-Only if you used the ZIP. Compare each file's SHA-256 with Appendix A (also in `SOURCE_HASHES.txt`, round 3 section).
+Only if you used the ZIP. Compare each file's SHA-256 with Appendix A (also in `SOURCE_HASHES.txt`, round 4 section).
 
 - Windows PowerShell, in the extracted folder: `Get-FileHash -Algorithm SHA256 src\ReplicatedStorage\Shared\BigNum.luau`
 - macOS Terminal: `shasum -a 256 src/ReplicatedStorage/Shared/BigNum.luau`
@@ -215,9 +216,9 @@ Delete every temporary QA object (`EmptyTests`, the `EmberboundQA` Script if you
 
 ---
 
-## 3. Run the 61 unit tests
+## 3. Run the 67 unit tests
 
-### T-1 All 61 tests in 7 suites pass in Studio
+### T-1 All 67 tests in 7 suites pass in Studio
 
 1. Clear Output. Press **Play**.
 2. Wait 5 seconds. Read Output (the server's lines; in Play mode they appear in the same Output window).
@@ -225,18 +226,18 @@ Delete every temporary QA object (`EmptyTests`, the `EmberboundQA` Script if you
 **Expected** (these 8 lines, in this order; other lines may appear between them):
 
 ```text
-[Tests] BigNumTests: 25 passed, 0 failed
+[Tests] BigNumTests: 31 passed, 0 failed
 [Tests] CombatFormulaTests: 4 passed, 0 failed
 [Tests] CombatRulesTests: 5 passed, 0 failed
 [Tests] ProgressionTests: 7 passed, 0 failed
 [Tests] RateLimiterTests: 3 passed, 0 failed
 [Tests] TestKitTests: 7 passed, 0 failed
 [Tests] WalletTests: 10 passed, 0 failed
-[Tests] ALL PASSED (61 tests)
+[Tests] ALL PASSED (67 tests)
 ```
 
-**PASS if** all 8 lines appear exactly (25 + 4 + 5 + 7 + 3 + 7 + 10 = 61) and there is no red error.
-**FAIL if** any line is missing, any count differs, or you see any `[Tests] FAIL …` line or a line like `[Tests] 1 FAILED, 60 passed`. Note: test failures are printed as **orange warnings**, not red errors, so read the text. Copy every `[Tests]` line into the failure report. One BigNum test uses Roblox's real `Random`, which the offline harness could not use; a failure there is a real Studio-only finding.
+**PASS if** all 8 lines appear exactly (31 + 4 + 5 + 7 + 3 + 7 + 10 = 67) and there is no red error.
+**FAIL if** any line is missing, any count differs, or you see any `[Tests] FAIL …` line or a line like `[Tests] 1 FAILED, 66 passed`. Note: test failures are printed as **orange warnings**, not red errors, so read the text. Copy every `[Tests]` line into the failure report. One BigNum test uses Roblox's real `Random`, which the offline harness could not use; a failure there is a real Studio-only finding.
 
 Keep this Play session running: M1-1 to M1-8 continue in it. Run T-2 after M1-8, because it needs a Stop.
 
@@ -251,7 +252,7 @@ Run this after M1-8. It checks the audit F3 fix in the real engine, and adds one
 
 ```text
 [Tests] FAIL could not load EmptyTests: did not return a test suite
-[Tests] 1 FAILED, 61 passed
+[Tests] 1 FAILED, 67 passed
 ```
 
 **FAIL if** `ALL PASSED` appears, or the two lines are missing.
@@ -820,7 +821,7 @@ Fresh Play; Client view: H-1. The counts snippet is Appendix C.15. "Wait 3 secon
 | Output text | Meaning | Verdict |
 |---|---|---|
 | `[CombatService] Created/Removed combat state for … (tracked players: N)` | Normal join/leave log | Allowed (info) |
-| `[Tests] …: N passed, 0 failed`, `[Tests] ALL PASSED (61 tests)` | Unit tests | Allowed (info) |
+| `[Tests] …: N passed, 0 failed`, `[Tests] ALL PASSED (67 tests)` | Unit tests | Allowed (info) |
 | `[QA] …`, `[Parity] ok …` | This guide's helpers | Allowed (info) |
 | `[CombatClient] No combat sync yet; re-sending ClientReady (attempt n/3)` | Sync retry | Allowed **only in D-4** (FAIL in M1-1) |
 | `[CombatClient] Could not disable the reset button …` | Cosmetic | Allowed; mention it in the notes |
@@ -847,40 +848,40 @@ The filled-in results file, all `QA_*.txt` Output files, screenshots of every FA
 
 ## Appendix A — the 24 files
 
-Create them in this order. "Parent" is the Explorer path. SHA-256 values are the round 3 (current) manifest in `SOURCE_HASHES.txt`; bytes, lines and Adler-32 are what the parity checker compares. Only `CombatService` differs from round 2 (one comment line).
+Create them in this order. "Parent" is the Explorer path. SHA-256 values are the round 4 (current) manifest in `SOURCE_HASHES.txt`; bytes, lines and Adler-32 are what the parity checker compares. Only `BigNum` and `BigNumTests` differ from round 3: they carry the adopted DEFECT-001/001B correction.
 
 | # | Parent (Explorer) | Name | Class | Repository file |
 |---|---|---|---|---|
-| 1 | ReplicatedStorage > Shared | `BigNum` | **ModuleScript** | [`src/ReplicatedStorage/Shared/BigNum.luau`](https://github.com/zelly-cious/Emberbound/blob/e9d878d94155610558c9c6252d76f202dfd956b4/src/ReplicatedStorage/Shared/BigNum.luau) |
-| 2 | ReplicatedStorage > Shared | `GameConfig` | **ModuleScript** | [`src/ReplicatedStorage/Shared/GameConfig.luau`](https://github.com/zelly-cious/Emberbound/blob/e9d878d94155610558c9c6252d76f202dfd956b4/src/ReplicatedStorage/Shared/GameConfig.luau) |
-| 3 | ReplicatedStorage > Shared | `ProgressionConfig` | **ModuleScript** | [`src/ReplicatedStorage/Shared/ProgressionConfig.luau`](https://github.com/zelly-cious/Emberbound/blob/e9d878d94155610558c9c6252d76f202dfd956b4/src/ReplicatedStorage/Shared/ProgressionConfig.luau) |
-| 4 | ServerScriptService | `CombatRules` | **ModuleScript** | [`src/ServerScriptService/CombatRules.luau`](https://github.com/zelly-cious/Emberbound/blob/e9d878d94155610558c9c6252d76f202dfd956b4/src/ServerScriptService/CombatRules.luau) |
-| 5 | ServerScriptService | `CombatService` | **ModuleScript** | [`src/ServerScriptService/CombatService.luau`](https://github.com/zelly-cious/Emberbound/blob/e9d878d94155610558c9c6252d76f202dfd956b4/src/ServerScriptService/CombatService.luau) |
-| 6 | ServerScriptService | `CurrencyService` | **ModuleScript** | [`src/ServerScriptService/CurrencyService.luau`](https://github.com/zelly-cious/Emberbound/blob/e9d878d94155610558c9c6252d76f202dfd956b4/src/ServerScriptService/CurrencyService.luau) |
-| 7 | ServerScriptService | `PlayerSessionService` | **ModuleScript** | [`src/ServerScriptService/PlayerSessionService.luau`](https://github.com/zelly-cious/Emberbound/blob/e9d878d94155610558c9c6252d76f202dfd956b4/src/ServerScriptService/PlayerSessionService.luau) |
-| 8 | ServerScriptService | `RateLimiter` | **ModuleScript** | [`src/ServerScriptService/RateLimiter.luau`](https://github.com/zelly-cious/Emberbound/blob/e9d878d94155610558c9c6252d76f202dfd956b4/src/ServerScriptService/RateLimiter.luau) |
-| 9 | ServerScriptService | `ServerInit` | **Script** | [`src/ServerScriptService/ServerInit.luau`](https://github.com/zelly-cious/Emberbound/blob/e9d878d94155610558c9c6252d76f202dfd956b4/src/ServerScriptService/ServerInit.luau) |
-| 10 | ServerScriptService | `UpgradeService` | **ModuleScript** | [`src/ServerScriptService/UpgradeService.luau`](https://github.com/zelly-cious/Emberbound/blob/e9d878d94155610558c9c6252d76f202dfd956b4/src/ServerScriptService/UpgradeService.luau) |
-| 11 | ServerScriptService | `Wallet` | **ModuleScript** | [`src/ServerScriptService/Wallet.luau`](https://github.com/zelly-cious/Emberbound/blob/e9d878d94155610558c9c6252d76f202dfd956b4/src/ServerScriptService/Wallet.luau) |
-| 12 | ServerScriptService > Tests | `BigNumTests` | **ModuleScript** | [`src/ServerScriptService/Tests/BigNumTests.luau`](https://github.com/zelly-cious/Emberbound/blob/e9d878d94155610558c9c6252d76f202dfd956b4/src/ServerScriptService/Tests/BigNumTests.luau) |
-| 13 | ServerScriptService > Tests | `CombatFormulaTests` | **ModuleScript** | [`src/ServerScriptService/Tests/CombatFormulaTests.luau`](https://github.com/zelly-cious/Emberbound/blob/e9d878d94155610558c9c6252d76f202dfd956b4/src/ServerScriptService/Tests/CombatFormulaTests.luau) |
-| 14 | ServerScriptService > Tests | `CombatRulesTests` | **ModuleScript** | [`src/ServerScriptService/Tests/CombatRulesTests.luau`](https://github.com/zelly-cious/Emberbound/blob/e9d878d94155610558c9c6252d76f202dfd956b4/src/ServerScriptService/Tests/CombatRulesTests.luau) |
-| 15 | ServerScriptService > Tests | `ProgressionTests` | **ModuleScript** | [`src/ServerScriptService/Tests/ProgressionTests.luau`](https://github.com/zelly-cious/Emberbound/blob/e9d878d94155610558c9c6252d76f202dfd956b4/src/ServerScriptService/Tests/ProgressionTests.luau) |
-| 16 | ServerScriptService > Tests | `RateLimiterTests` | **ModuleScript** | [`src/ServerScriptService/Tests/RateLimiterTests.luau`](https://github.com/zelly-cious/Emberbound/blob/e9d878d94155610558c9c6252d76f202dfd956b4/src/ServerScriptService/Tests/RateLimiterTests.luau) |
-| 17 | ServerScriptService > Tests | `TestKit` | **ModuleScript** | [`src/ServerScriptService/Tests/TestKit.luau`](https://github.com/zelly-cious/Emberbound/blob/e9d878d94155610558c9c6252d76f202dfd956b4/src/ServerScriptService/Tests/TestKit.luau) |
-| 18 | ServerScriptService > Tests | `TestKitTests` | **ModuleScript** | [`src/ServerScriptService/Tests/TestKitTests.luau`](https://github.com/zelly-cious/Emberbound/blob/e9d878d94155610558c9c6252d76f202dfd956b4/src/ServerScriptService/Tests/TestKitTests.luau) |
-| 19 | ServerScriptService > Tests | `TestRunner` | **Script** | [`src/ServerScriptService/Tests/TestRunner.luau`](https://github.com/zelly-cious/Emberbound/blob/e9d878d94155610558c9c6252d76f202dfd956b4/src/ServerScriptService/Tests/TestRunner.luau) |
-| 20 | ServerScriptService > Tests | `WalletTests` | **ModuleScript** | [`src/ServerScriptService/Tests/WalletTests.luau`](https://github.com/zelly-cious/Emberbound/blob/e9d878d94155610558c9c6252d76f202dfd956b4/src/ServerScriptService/Tests/WalletTests.luau) |
-| 21 | StarterPlayer > StarterPlayerScripts | `CombatClient` | **LocalScript** | [`src/StarterPlayer/StarterPlayerScripts/CombatClient.luau`](https://github.com/zelly-cious/Emberbound/blob/e9d878d94155610558c9c6252d76f202dfd956b4/src/StarterPlayer/StarterPlayerScripts/CombatClient.luau) |
-| 22 | StarterPlayer > StarterPlayerScripts > CombatClient | `ArenaView` | **ModuleScript** | [`src/StarterPlayer/StarterPlayerScripts/CombatClient/ArenaView.luau`](https://github.com/zelly-cious/Emberbound/blob/e9d878d94155610558c9c6252d76f202dfd956b4/src/StarterPlayer/StarterPlayerScripts/CombatClient/ArenaView.luau) |
-| 23 | StarterPlayer > StarterPlayerScripts > CombatClient | `CombatHud` | **ModuleScript** | [`src/StarterPlayer/StarterPlayerScripts/CombatClient/CombatHud.luau`](https://github.com/zelly-cious/Emberbound/blob/e9d878d94155610558c9c6252d76f202dfd956b4/src/StarterPlayer/StarterPlayerScripts/CombatClient/CombatHud.luau) |
-| 24 | StarterPlayer > StarterPlayerScripts > CombatClient | `UpgradePanel` | **ModuleScript** | [`src/StarterPlayer/StarterPlayerScripts/CombatClient/UpgradePanel.luau`](https://github.com/zelly-cious/Emberbound/blob/e9d878d94155610558c9c6252d76f202dfd956b4/src/StarterPlayer/StarterPlayerScripts/CombatClient/UpgradePanel.luau) |
+| 1 | ReplicatedStorage > Shared | `BigNum` | **ModuleScript** | [`src/ReplicatedStorage/Shared/BigNum.luau`](https://github.com/zelly-cious/Emberbound/blob/9a988c9254e07ac50dcf32fe4b55ba975613390d/src/ReplicatedStorage/Shared/BigNum.luau) |
+| 2 | ReplicatedStorage > Shared | `GameConfig` | **ModuleScript** | [`src/ReplicatedStorage/Shared/GameConfig.luau`](https://github.com/zelly-cious/Emberbound/blob/9a988c9254e07ac50dcf32fe4b55ba975613390d/src/ReplicatedStorage/Shared/GameConfig.luau) |
+| 3 | ReplicatedStorage > Shared | `ProgressionConfig` | **ModuleScript** | [`src/ReplicatedStorage/Shared/ProgressionConfig.luau`](https://github.com/zelly-cious/Emberbound/blob/9a988c9254e07ac50dcf32fe4b55ba975613390d/src/ReplicatedStorage/Shared/ProgressionConfig.luau) |
+| 4 | ServerScriptService | `CombatRules` | **ModuleScript** | [`src/ServerScriptService/CombatRules.luau`](https://github.com/zelly-cious/Emberbound/blob/9a988c9254e07ac50dcf32fe4b55ba975613390d/src/ServerScriptService/CombatRules.luau) |
+| 5 | ServerScriptService | `CombatService` | **ModuleScript** | [`src/ServerScriptService/CombatService.luau`](https://github.com/zelly-cious/Emberbound/blob/9a988c9254e07ac50dcf32fe4b55ba975613390d/src/ServerScriptService/CombatService.luau) |
+| 6 | ServerScriptService | `CurrencyService` | **ModuleScript** | [`src/ServerScriptService/CurrencyService.luau`](https://github.com/zelly-cious/Emberbound/blob/9a988c9254e07ac50dcf32fe4b55ba975613390d/src/ServerScriptService/CurrencyService.luau) |
+| 7 | ServerScriptService | `PlayerSessionService` | **ModuleScript** | [`src/ServerScriptService/PlayerSessionService.luau`](https://github.com/zelly-cious/Emberbound/blob/9a988c9254e07ac50dcf32fe4b55ba975613390d/src/ServerScriptService/PlayerSessionService.luau) |
+| 8 | ServerScriptService | `RateLimiter` | **ModuleScript** | [`src/ServerScriptService/RateLimiter.luau`](https://github.com/zelly-cious/Emberbound/blob/9a988c9254e07ac50dcf32fe4b55ba975613390d/src/ServerScriptService/RateLimiter.luau) |
+| 9 | ServerScriptService | `ServerInit` | **Script** | [`src/ServerScriptService/ServerInit.luau`](https://github.com/zelly-cious/Emberbound/blob/9a988c9254e07ac50dcf32fe4b55ba975613390d/src/ServerScriptService/ServerInit.luau) |
+| 10 | ServerScriptService | `UpgradeService` | **ModuleScript** | [`src/ServerScriptService/UpgradeService.luau`](https://github.com/zelly-cious/Emberbound/blob/9a988c9254e07ac50dcf32fe4b55ba975613390d/src/ServerScriptService/UpgradeService.luau) |
+| 11 | ServerScriptService | `Wallet` | **ModuleScript** | [`src/ServerScriptService/Wallet.luau`](https://github.com/zelly-cious/Emberbound/blob/9a988c9254e07ac50dcf32fe4b55ba975613390d/src/ServerScriptService/Wallet.luau) |
+| 12 | ServerScriptService > Tests | `BigNumTests` | **ModuleScript** | [`src/ServerScriptService/Tests/BigNumTests.luau`](https://github.com/zelly-cious/Emberbound/blob/9a988c9254e07ac50dcf32fe4b55ba975613390d/src/ServerScriptService/Tests/BigNumTests.luau) |
+| 13 | ServerScriptService > Tests | `CombatFormulaTests` | **ModuleScript** | [`src/ServerScriptService/Tests/CombatFormulaTests.luau`](https://github.com/zelly-cious/Emberbound/blob/9a988c9254e07ac50dcf32fe4b55ba975613390d/src/ServerScriptService/Tests/CombatFormulaTests.luau) |
+| 14 | ServerScriptService > Tests | `CombatRulesTests` | **ModuleScript** | [`src/ServerScriptService/Tests/CombatRulesTests.luau`](https://github.com/zelly-cious/Emberbound/blob/9a988c9254e07ac50dcf32fe4b55ba975613390d/src/ServerScriptService/Tests/CombatRulesTests.luau) |
+| 15 | ServerScriptService > Tests | `ProgressionTests` | **ModuleScript** | [`src/ServerScriptService/Tests/ProgressionTests.luau`](https://github.com/zelly-cious/Emberbound/blob/9a988c9254e07ac50dcf32fe4b55ba975613390d/src/ServerScriptService/Tests/ProgressionTests.luau) |
+| 16 | ServerScriptService > Tests | `RateLimiterTests` | **ModuleScript** | [`src/ServerScriptService/Tests/RateLimiterTests.luau`](https://github.com/zelly-cious/Emberbound/blob/9a988c9254e07ac50dcf32fe4b55ba975613390d/src/ServerScriptService/Tests/RateLimiterTests.luau) |
+| 17 | ServerScriptService > Tests | `TestKit` | **ModuleScript** | [`src/ServerScriptService/Tests/TestKit.luau`](https://github.com/zelly-cious/Emberbound/blob/9a988c9254e07ac50dcf32fe4b55ba975613390d/src/ServerScriptService/Tests/TestKit.luau) |
+| 18 | ServerScriptService > Tests | `TestKitTests` | **ModuleScript** | [`src/ServerScriptService/Tests/TestKitTests.luau`](https://github.com/zelly-cious/Emberbound/blob/9a988c9254e07ac50dcf32fe4b55ba975613390d/src/ServerScriptService/Tests/TestKitTests.luau) |
+| 19 | ServerScriptService > Tests | `TestRunner` | **Script** | [`src/ServerScriptService/Tests/TestRunner.luau`](https://github.com/zelly-cious/Emberbound/blob/9a988c9254e07ac50dcf32fe4b55ba975613390d/src/ServerScriptService/Tests/TestRunner.luau) |
+| 20 | ServerScriptService > Tests | `WalletTests` | **ModuleScript** | [`src/ServerScriptService/Tests/WalletTests.luau`](https://github.com/zelly-cious/Emberbound/blob/9a988c9254e07ac50dcf32fe4b55ba975613390d/src/ServerScriptService/Tests/WalletTests.luau) |
+| 21 | StarterPlayer > StarterPlayerScripts | `CombatClient` | **LocalScript** | [`src/StarterPlayer/StarterPlayerScripts/CombatClient.luau`](https://github.com/zelly-cious/Emberbound/blob/9a988c9254e07ac50dcf32fe4b55ba975613390d/src/StarterPlayer/StarterPlayerScripts/CombatClient.luau) |
+| 22 | StarterPlayer > StarterPlayerScripts > CombatClient | `ArenaView` | **ModuleScript** | [`src/StarterPlayer/StarterPlayerScripts/CombatClient/ArenaView.luau`](https://github.com/zelly-cious/Emberbound/blob/9a988c9254e07ac50dcf32fe4b55ba975613390d/src/StarterPlayer/StarterPlayerScripts/CombatClient/ArenaView.luau) |
+| 23 | StarterPlayer > StarterPlayerScripts > CombatClient | `CombatHud` | **ModuleScript** | [`src/StarterPlayer/StarterPlayerScripts/CombatClient/CombatHud.luau`](https://github.com/zelly-cious/Emberbound/blob/9a988c9254e07ac50dcf32fe4b55ba975613390d/src/StarterPlayer/StarterPlayerScripts/CombatClient/CombatHud.luau) |
+| 24 | StarterPlayer > StarterPlayerScripts > CombatClient | `UpgradePanel` | **ModuleScript** | [`src/StarterPlayer/StarterPlayerScripts/CombatClient/UpgradePanel.luau`](https://github.com/zelly-cious/Emberbound/blob/9a988c9254e07ac50dcf32fe4b55ba975613390d/src/StarterPlayer/StarterPlayerScripts/CombatClient/UpgradePanel.luau) |
 
 Checksums (for P-3 and P-4):
 
 | # | Name | Bytes | Lines | Adler-32 | SHA-256 |
 |---|---|---|---|---|---|
-| 1 | `BigNum` | 15064 | 508 | 3533007835 | `c7474136d45bada326484a786fd60ff5ca02a18a12b4012fbcfca01a3950244a` |
+| 1 | `BigNum` | 16287 | 532 | 3188390913 | `e337573da95f481a022ed0e6f31dfefdacb0755921214cdb89cdb53d8e08f674` |
 | 2 | `GameConfig` | 5692 | 152 | 3501233795 | `2cefa5f694865e6682a8a9d8f04d0d1885499829ee1466a4dc227c9b4f070591` |
 | 3 | `ProgressionConfig` | 5662 | 139 | 681296945 | `7d6483b06a155ca93bd2c408004cf2a3dd9bd797ca4d224cb69a4f1ba041ea80` |
 | 4 | `CombatRules` | 2797 | 90 | 1984805962 | `1e18a1a78f25cbee8e325e6356a6875d3944db9f51604ec2d8f059d26a2a1d37` |
@@ -891,7 +892,7 @@ Checksums (for P-3 and P-4):
 | 9 | `ServerInit` | 1105 | 27 | 852134481 | `cdc062557c5b3e3a796058c343b5622c8974dfb3727323809aafbf88156b7f98` |
 | 10 | `UpgradeService` | 7868 | 222 | 700827497 | `489bfa3f97555790c69bdb5adf7d758be0230a54eda5cfdf50916c689e00bb8f` |
 | 11 | `Wallet` | 2629 | 80 | 354195652 | `98fb07db5e0dbefb87e35e606e40aba98257bf9e0209b513b4ba372f2d16634c` |
-| 12 | `BigNumTests` | 13960 | 383 | 755231800 | `0c13e4842d1420b285243e824c012bca32cbe13e09df278af53ae709d914d97a` |
+| 12 | `BigNumTests` | 23275 | 578 | 1646015937 | `8d28a9bf19fa29cf3ccf53dc5dd066f2777ef85548a35911b19f1feab4113b51` |
 | 13 | `CombatFormulaTests` | 3327 | 87 | 1867459093 | `91b557d4c31584050ef8589586439a04771279f34f25f842fd88b812311f56bb` |
 | 14 | `CombatRulesTests` | 4399 | 118 | 839619764 | `5f2bd8ac8ce428334aefa5780760a86e96b3539f451dd4f34046c4be48900827` |
 | 15 | `ProgressionTests` | 4170 | 128 | 3226287864 | `8d019e1c842334f5692c6debb59933268f50965678281beb33b6ccd814a9e953` |
@@ -915,7 +916,7 @@ Folders: `ReplicatedStorage/Shared`, `ReplicatedStorage/Remotes`, `ServerScriptS
 
 ```lua
 local E = {
-	{ "ReplicatedStorage/Shared/BigNum", "ModuleScript", 15064, 508, 3533007835 },
+	{ "ReplicatedStorage/Shared/BigNum", "ModuleScript", 16287, 532, 3188390913 },
 	{ "ReplicatedStorage/Shared/GameConfig", "ModuleScript", 5692, 152, 3501233795 },
 	{ "ReplicatedStorage/Shared/ProgressionConfig", "ModuleScript", 5662, 139, 681296945 },
 	{ "ServerScriptService/CombatRules", "ModuleScript", 2797, 90, 1984805962 },
@@ -926,7 +927,7 @@ local E = {
 	{ "ServerScriptService/ServerInit", "Script", 1105, 27, 852134481 },
 	{ "ServerScriptService/UpgradeService", "ModuleScript", 7868, 222, 700827497 },
 	{ "ServerScriptService/Wallet", "ModuleScript", 2629, 80, 354195652 },
-	{ "ServerScriptService/Tests/BigNumTests", "ModuleScript", 13960, 383, 755231800 },
+	{ "ServerScriptService/Tests/BigNumTests", "ModuleScript", 23275, 578, 1646015937 },
 	{ "ServerScriptService/Tests/CombatFormulaTests", "ModuleScript", 3327, 87, 1867459093 },
 	{ "ServerScriptService/Tests/CombatRulesTests", "ModuleScript", 4399, 118, 839619764 },
 	{ "ServerScriptService/Tests/ProgressionTests", "ModuleScript", 4170, 128, 3226287864 },
@@ -1400,7 +1401,7 @@ After L-1, release the reference with `_G.QA_P2 = nil`.
 
 ## Appendix E — expected-value tables
 
-Values come from `ProgressionConfig` and `GameConfig` at `e9d878d` (unchanged since `e4b0108`), computed with the same formulas (they match the offline harness table in `M2_REVIEW_GUIDE.md` §6). Before rounding down, every cost and value in E.1 and every stage up to 20 in E.3 is either an exact whole number or at least 0.006 away from one, far more than any floating-point difference between machines, so these numbers must match exactly. The large-stage strings (stage 50 and above) come from the same formulas through a port of `BigNum.format`; if Studio differs only in the last displayed digit, record it as an observation, not a FAIL.
+Values come from `ProgressionConfig` and `GameConfig` at `9a988c9` (unchanged since `e4b0108`), computed with the same formulas (they match the offline harness table in `M2_REVIEW_GUIDE.md` §6). Before rounding down, every cost and value in E.1 and every stage up to 20 in E.3 is either an exact whole number or at least 0.006 away from one, far more than any floating-point difference between machines, so these numbers must match exactly. The large-stage strings (stage 50 and above) come from the same formulas through a port of `BigNum.format`; if Studio differs only in the last displayed digit, record it as an observation, not a FAIL.
 
 ### E.1 Tap Damage upgrade: cost and value by level
 

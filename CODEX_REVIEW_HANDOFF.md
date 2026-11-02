@@ -2,6 +2,8 @@
 
 **Read-only audit of Milestone 2: Tap Upgrades, Economy & BigNum.** This repository is self-contained; no conversation history is needed.
 
+> **Current review (round 4 BigNum adoption):** see `review/M2_BIGNUM_ADOPTION_CODEX_HANDOFF.md`. Everything below is historical.
+
 > **Status (1 Nov 2026) — superseding note; the round 1 and round 2 sections below are historical.** Codex's round 2 re-review returned **CONDITIONAL PASS** (source: Codex's round 2 re-review of PR head `09be466`, as summarized in the producer's "Milestone 2 Final Review Decisions" message of 1 Nov 2026. The full Codex report text is not in this repository). The producer then recorded a bounded BigNum precision contract and conditionally deferred limitations R2-1 (`BigNum.parse`) and R2-2 (`BigNum.ratio`) for M2 only (`M2_REQUIREMENTS.md`, `DECISIONS.md` decisions 8–10). Two statements below are superseded: "exact below 2^53" (round 1 summary) is replaced by that bounded contract, and "`git diff e4b0108 HEAD -- src` is empty" is no longer true. The only later source change is one comment line in `CombatService.luau`, with byte-identical bytecode (`SOURCE_HASHES.txt` round 3). Next step: Roblox Studio QA with `M2_STUDIO_REGRESSION_GUIDE.md`. Milestone 2 is frozen until then; PR #1 is not to be merged.
 
 ## Round 2 — re-review of the audit corrections (current)
