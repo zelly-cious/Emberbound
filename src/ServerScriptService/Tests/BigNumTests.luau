@@ -375,6 +375,49 @@ local tests: { TestKit.TestCase } = {
 			expectTrue(BigNum.lt(tiny, n(1e-300)), "ordered")
 		end,
 	},
+	-- DEFECT-001 regression tests. On a host that flushes subnormal results to zero (FTZ),
+	-- results rebuilt from scientific form below 2.2250738585072014e-308 used to come out as 0.
+	-- Expected values are exact in both floating-point modes (checked offline with FTZ on and off).
+	{
+		name = "subnormal results rebuilt from scientific form are not flushed to zero",
+		run = function()
+			local cases = {
+				{ "5e-30", 5e-324 }, -- the smallest positive double
+				{ "3e-30", 5e-324 }, -- rounds up to it
+				{ "1e-29", 1e-323 }, -- twice the smallest positive double
+				{ "1e-26", 1e-320 },
+				{ "1.5e-23", 1.5e-317 },
+				{ "1e-16", 1e-310 },
+				{ "1.1125369292536007e-14", 1.1125369292536007e-308 }, -- half the smallest normal
+			}
+			for _, case in cases do
+				local value = BigNum.div(p(case[1]), p("1e294"))
+				expectTrue(BigNum.isValid(value) and not BigNum.isZero(value), `{case[1]} / 1e294 is a positive BigNum`)
+				expectTrue(BigNum.eq(value, n(case[2])), `{case[1]} / 1e294 equals {case[2]}`)
+			end
+			expectTrue(BigNum.eq(BigNum.div(p("1.5"), p("1e310")), n(1.5e-310)), "1.5 / 1e310")
+			expectTrue(BigNum.eq(BigNum.div(p("3"), p("1e310")), n(3e-310)), "3 / 1e310")
+		end,
+	},
+	{
+		name = "the normal boundary and genuine underflow are unchanged",
+		run = function()
+			local smallestNormal = n(2.2250738585072014e-308)
+			expectTrue(BigNum.eq(BigNum.div(p("2.2250738585072014e-14"), p("1e294")), smallestNormal), "smallest normal")
+			-- Just below it, the floating-point mode decides the last step (bounded precision contract):
+			-- the result is the largest subnormal or the smallest normal, and never zero.
+			local largestSubnormal = BigNum.div(p("2.2250738585072009e-14"), p("1e294"))
+			expectTrue(
+				BigNum.eq(largestSubnormal, n(2.2250738585072009e-308)) or BigNum.eq(largestSubnormal, smallestNormal),
+				"largest subnormal stays within one step"
+			)
+			-- Below half of 5e-324 the exact result rounds to zero in every mode.
+			for _, case in { { "1e-30", "1e294" }, { "2e-30", "1e294" }, { "2.4e-30", "1e294" }, { "5", "1e330" }, { "1e-30", "1e400" } } do
+				local value = BigNum.div(p(case[1]), p(case[2]))
+				expectTrue(BigNum.isZero(value) and BigNum.eq(value, BigNum.zero), `{case[1]} / {case[2]} underflows to zero`)
+			end
+		end,
+	},
 }
 
 return {

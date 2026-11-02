@@ -58,10 +58,20 @@ end
 	subnormal doubles (down to 5e-324) need 10^-324, which underflows to zero on
 	its own. Every other power uses the single operation, so ordinary values
 	round exactly as before.
+
+	DEFECT-001: a host that flushes subnormal results to zero (FTZ, as Roblox Studio
+	did) makes the two-step product 0 even when m * 10^power is a representable
+	subnormal. Only then (a zero product from a positive m) the value is rebuilt from
+	decimal text, which tonumber rounds correctly; it still returns 0 for a genuine
+	underflow (below half of 5e-324). Every other result is returned unchanged.
 ]]
 local function multiplyByPowerOfTen(m: number, power: number): number
 	if power < -300 then
-		return m * 10 ^ (power + 300) * 1e-300
+		local value = m * 10 ^ (power + 300) * 1e-300
+		if value == 0 and m > 0 then
+			value = tonumber(string.format("%.17ge%.0f", m, power)) or 0
+		end
+		return value
 	end
 	return m * 10 ^ power
 end
