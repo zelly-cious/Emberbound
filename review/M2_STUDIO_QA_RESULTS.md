@@ -23,9 +23,11 @@ The place file `Emberbound_M2_DEFECT001_QA.rbxl` was saved afterwards. The open 
 
 **Revision 6 (2026-11-03).** Incorporates the producer's subsequent explicit Roblox Studio confirmations for U-3/U-4/U-7, A-4, MOB-6/MOB-7 and C-5. The producer formally accepted M1-2 as a **known Low-severity, nonblocking M2 deviation** without changing its strict FAIL. This is reported evidence, not new independently collected Studio logs. P-3 and the other outstanding evidence/adoption requirements remain open.
 
+**Revision 7 (2026-11-03).** Records ten further **condition-specific owner confirmations** for M1-3/4/5/7/8, U-1/2 and B-1/2/3, and the producer's general statement: **"I remember doing all these tests without errors. Go ahead and approve them all as PASS."** The first ten tests move from PASS† to PASS. The remaining ten (B-4/5, D-1/2/3/4, MOB-1/2, N-1/3) carry the producer's blanket PASS sign-off but remain **PASS† for independent grading**, because the producer did not specifically confirm every guide condition (notably effective lag, screen-safe-area readability and huge-damage capped popup). This is a distinction between **producer attestation** and **auditable guide-criterion evidence**, not a rejection of the owner's recollection. Codex's read-only report accepted revision 6's new test confirmations, the camera exception and warnings dispositions, but held full QA acceptance pending condition-specific evidence and adoption packaging. No tests were rerun or gameplay files changed.
+
 | | |
 |---|---|
-| **Overall status** | **CONDITIONAL — NOT A FULL QA PASS / NOT RELEASE-READY.** 37 PASS (including revision-6 user confirmations), 20 PASS† pending detail, 1 strict FAIL (M1-2; **formally producer-accepted Low/nonblocking M2 deviation**), 1 PARTIAL (P-3), 0 BLOCKED, 2 optional NOT RUN and 1 optional NOT VERIFIED. This does not approve the candidate, Milestone 2 completion or PR #1 merge. General no-red-Output confirmation, mobile specifics, independent warning classification, risk acceptance for BigNum and revised source pin/manifest/parity/installer remain outstanding (section 6). |
+| **Overall status** | **CONDITIONAL — PRODUCER SIGN-OFF RECORDED; NOT YET INDEPENDENTLY ACCEPTED / NOT RELEASE-READY.** 47 PASS (including ten revision-7 condition-specific owner confirmations), 10 PASS† with additional blanket producer PASS attestation but incomplete condition-specific evidence, 1 strict FAIL (M1-2, producer-accepted Low/nonblocking M2 deviation), 1 historical PARTIAL (P-3, final candidate parity P-5 passed), 0 BLOCKED, 2 optional NOT RUN and 1 optional NOT VERIFIED. The producer reports running the remaining tests without errors and approves their outcomes; **Codex's strict PASS-grading rule still requires particular observations** for the ten PASS† entries and some conditions in existing PASS rows. Candidate adoption/package changes and PR #1 review remain separate mandatory work (section 6). |
 | **Provenance** | The project owner ran the tests in Roblox Studio and reported the results through the Roblox Studio testing conversation: written observations, plus quoted Output lines for P-5 (both runs), T-2, L-1, C-3, C-4 and the cleanup counts. **No Output files (`QA_*.txt`) or screenshots are in the repository.** A screenshot was captured for N-6; it is not in the repository. Claude Code wrote this report from the owner's reports and repository evidence. No observation, log, screenshot, measurement or test action was added beyond what the owner reported; where something is derived or inferred, it says so. |
 | **Where the referenced files are** | The tested code, `review/DEFECT-001_REPORT.md`, `review/DEFECT-001B_REPORT.md` and `review/DEFECT-001B_CODEX_HANDOFF.md` are on branch `candidate/m2-defect-001-ftz-subnormal` at `9a988c9`. The pinned guide and template are on PR #1 head `2b832d2`, and also on `9a988c9`. This report is committed on `claude/emberbound-m2-regression-testing-56vtjh`, which holds an older, unpinned copy of the guide; review against the pinned version. |
 | **Not done** | PR #1 is not merged. Milestone 2 is not marked complete. Milestone 2.1 is not started. No gameplay source was changed. |
@@ -37,7 +39,7 @@ The template allows PASS, FAIL, BLOCKED and NOT RUN. Three extra marks keep the 
 | Mark | Meaning in this report |
 |---|---|
 | **PASS** | The reported observations cover the test's primary "PASS if" conditions. Secondary conditions that were not itemized are named in the Notes. One condition applies to every test and was not itemized per test: the guide's rule (0.3) that any red Output line is a FAIL. It is a single open confirmation (R-2). |
-| **PASS†** | Reported as passed, but the only evidence is the category-level statement (section 3.2) or a summary-level remark, or the reported procedure does not match the guide's. **Needs confirmation.** |
+| **PASS†** | Reported as passed by the owner, including the producer's blanket PASS sign-off in revision 7, but missing evidence for some specific guide criteria. **Producer-attested, pending independent acceptance**; not counted as a fully substantiated PASS. |
 | **FAIL** | A PASS condition was observed not to hold. |
 | **PARTIAL** | Part of the test was done, and a required step or condition was not performed or not confirmed. Not a pass, and **not a defect**. |
 | **BLOCKED** | The test could not be completed conclusively; the reason is given. |
@@ -131,20 +133,20 @@ Source: the saved `Emberbound_M2_DEFECT001_QA.rbxl`, containing candidate `9a988
    The owner reported 67/67. The per-suite lines were not supplied.
 4. **T-2 expectation.** With the candidate, the negative control prints `[Tests] 1 FAILED, 67 passed`, not `1 FAILED, 61 passed`. Confirmed in Studio (T-2).
 
-### 3.2 Category-level evidence (the PASS† rows)
+### 3.2 Confirmation provenance for the formerly conditional rows
 
-For these tests the only evidence is the owner's statement that "Combat, upgrades, currency, request validation, replay protection, multiplayer isolation, network-lag behavior, and large-number displays passed their primary numerical checks". The mapping below is the report author's reading and **must be confirmed (R-2)**.
+At revision 6, 20 tests were marked PASS† for insufficient condition-specific evidence. In the subsequent QA conversation, the owner explicitly confirmed **all enumerated PASS criteria** for **M1-3, M1-4, M1-5, M1-7, M1-8, U-1, U-2, B-1, B-2 and B-3**. They are now marked PASS (owner-reported; not independent Roblox Studio execution).
 
-| Category | Tests credited only by this statement |
-|---|---|
-| Combat | M1-3, M1-4, M1-5, M1-7 (the input part of this mapping is assumed) |
-| Request validation | M1-8 |
-| Upgrades | U-1, U-2 |
-| Replay protection / multiplayer isolation | B-1, B-2, B-3, B-4, B-5 |
-| Network-lag behaviour | D-1, D-2, D-3, D-4 |
-| Large-number displays | N-1, N-3 |
+For the **remaining 10 tests**, the producer stated: **"I remember doing all these tests without errors. Go ahead and approve them all as PASS."** This is recorded as the **producer's approval/attestation**, but is not an itemized reply to all specific checks. The ten are still marked PASS† (reviewer evidence gap), with their previously reported numerical or visual observations kept in section 4.
 
-Two more PASS† rows rest on a summary-level remark (MOB-1, MOB-2). A-4 was subsequently repeated with the guide's exact one-request procedure and is now PASS.
+| Category of remaining owner-attested results | IDs | Outstanding specifically evidenced conditions |
+|---|---|---|
+| Multiplayer | B-4, B-5 | Extra player argument has no cross-player effect; exact per-player replay ID and reply/update sequence |
+| Simulated lag | D-1, D-2, D-3, D-4 | Confirm the lag emulator affected packet timing, plus relevant exact results |
+| Mobile layout | MOB-1, MOB-2 | Text readability, device notch safe area, prohibited overlap |
+| Large numbers | N-1, N-3 | Actual full spot-check PASS line, huge Tap Damage and capped popup |
+
+The producer also reports **no unexpected errors** in the referenced tests. This is owner-reported rather than from uploaded Output files. These limitations are disclosed to facilitate Codex's subsequent review; they do not mean the tests are known to have failed.
 
 ### 3.3 Consistency checks on the reported numbers (analysis, not new observations)
 
@@ -183,14 +185,14 @@ Every check uses the formulas in `ProgressionConfig` and `GameConfig` and the gu
 | X-1 | *(added)* DEFECT-001/001B BigNum FTZ/subnormal Studio checks | **PASS** | Reported passed in **Edit, Server and Client** contexts. Probe lines not supplied. This covers the arithmetic and serialization round-trip items of `review/DEFECT-001B_REPORT.md` §9; the unit-test item is T-1. |
 | M1-1 | Clean startup | **PASS** | Owner observed clean startup passing. The `Created combat state …` line and the startup Output were not quoted. |
 | M1-2 | No avatar, fixed camera | **FAIL** | Reproduced: Focus `(0, 53.7913703918457, -1.8776741027832031)` instead of `(0, 54, 0)` and explicit assignment reverted on RenderStepped. Camera aim, position, Scriptable type, FOV and restrictions were correct. **Producer formally accepted as a Low-severity, nonblocking M2 deviation on 2026-11-03.** Strict FAIL is retained; not a code fix, QA PASS or general release approval (R-3, F-1). |
-| M1-3 | Initial sync and HUD values | **PASS†** | Category statement only (3.2) |
-| M1-4 | Ten taps defeat stage 1 once | **PASS†** | Category statement only |
-| M1-5 | Stage 2 and 3 values | **PASS†** | Category statement only |
+| M1-3 | Initial sync and HUD values | **PASS** | **Owner expressly confirmed all conditions:** logger's initial Currency/Upgrade/Combat Sync messages and exact Stage 1, Forest Slime, 10/10 HP, Gold 0, Tap Damage 1, Level 1, Next 2, `Need 5 Gold` displays, and no lingering placeholders after 5 seconds. No verbatim logger lines supplied. |
+| M1-4 | Ten taps defeat stage 1 once | **PASS** | Owner expressly confirmed all guide conditions: one HP loss and white `-1` popup per click, tenth-click single defeat burst, `+5 Gold` popup, Stage 2 with 11/11 HP, `hits=9 defeats=1` and exactly one Currency Gold=5 logger update. No new logs uploaded. |
+| M1-5 | Stage 2 and 3 values | **PASS** | Owner expressly confirmed damage remained 1; Stage 2 11/11 HP and +5 Gold (total 10), Stage 3 13/13 HP and +6 Gold (total 16), Stage 4 16/16 HP. |
 | M1-6 | Server tap cooldown | **PASS** | Burst accepted = **1** (of 200). 5 s spam accepted = **61** (limit 72). The sub-condition "HP and Gold change only by those accepted hits" was not itemized. |
-| M1-7 | Clicks outside the combat area | **PASS†** | Category statement only |
-| M1-8 | Extra attack arguments ignored | **PASS†** | Category statement only |
-| U-1 | Panel at 0 Gold | **PASS†** | Category statement only |
-| U-2 | First purchase | **PASS†** | Category statement only |
+| M1-7 | Clicks outside the combat area | **PASS** | Owner expressly confirmed Stage/Gold/Tap Damage pills, panel titles/labels and Upgrade button caused zero attacks (`hits=0 defeats=0`); three subsequent slime clicks caused exactly three attacks. |
+| M1-8 | Extra attack arguments ignored | **PASS** | Owner expressly confirmed the attack carrying fake `1e308` and `999999` values used only legitimate Tap Damage (capped by remaining enemy HP), ignored extras and produced no unexpected red errors. |
+| U-1 | Panel at 0 Gold | **PASS** | Owner expressly confirmed 5 clicks on disabled/grey `Need 5 Gold` caused no request/reply or status, with Gold 0, Level 1, Tap Damage 1, Next 2 and same button label. |
+| U-2 | First purchase | **PASS** | Owner expressly confirmed full first-purchase sequence: first defeat granted 5 Gold, buy cost 5 (Gold 0), Level 2, Tap Damage 2 on HUD/panel, Next 3, `Need 5 Gold`, green `Upgraded!` pop, correct ordered server updates and Ok response; Stage 2 HP 11→9→7→5→3→1 then final capped `-1`, single defeat, +5 Gold and Stage 3. This is owner testimony, no logger file. |
 | U-3 | HUD, panel and hits agree | **PASS** | Owner explicitly confirmed consistent HUD Tap Damage, panel Tap Damage and real damage during normal upgrades through Level 25. U-5 (75) and N-2 (78/81/84) corroborate some levels. Per-purchase numerical logs were not supplied; the confirmation is owner testimony. |
 | U-4 | Level 24 → 25 by playing | **PASS** | Owner explicitly confirmed **normal play** from Level 1 to 25, no Gold helper grants, and a 23-Gold Level 24→25 cost, 24→75 Tap Damage, 23 Gold deducted, next value 78 and next cost 25. U-3 owner confirmation covers consistent displays and real damage; U-5 independently verified the boundary hit via helper setup. Natural-run per-purchase logs and exact popup line were not supplied. |
 | U-5 | Level 24 → 25 with exact Gold | **PASS** | Starting at Level 24, a 23-Gold grant bought Level 25 with **exactly 0 Gold** left; Tap Damage became **75**; one attack on an 85-HP enemy left **10 HP**. Not itemized: the E.2 Gold sequence and the count of 23 `Ok` replies in step 2, the panel `Next: 78 damage` / `Need 25 Gold` text, and the `-10` first hit on stage 1. |
@@ -203,17 +205,17 @@ Every check uses the formulas in `ProgressionConfig` and `GameConfig` and the gu
 | A-5 | Burst of 100 purchase requests | **PASS** | Exactly **10** successful purchases; Level 3 → **13**; Gold 1000 → **925**. This matches the guide's exact expectation and the cost table (3.3). |
 | A-6 | Sustained purchase requests | **PASS** | 50 requests over 2.92 s; replies = **32** / limit **34** (28 Ok, 4 InsufficientFunds); final Gold 29, Level 41. Consistent with the cost table (3.3). |
 | A-7 | Largest request id | **PASS** | id `9007199254740991` produced exactly **one** reply (InsufficientFunds); the duplicate was ignored |
-| B-1 | Combat independent per player | **PASS†** | Category statement only |
-| B-2 | Purchases independent per player | **PASS†** | Category statement only |
-| B-3 | Request ids per player | **PASS†** | Category statement only |
-| B-4 | Cannot act for another player | **PASS†** | Category statement only |
-| B-5 | Replay protection still independent | **PASS†** | Category statement only |
-| D-4 | Startup sync with heavy lag | **PASS†** | Category statement only. Whether the lag setting had an effect: *not supplied* |
-| D-1 | Taps under lag | **PASS†** | Category statement only |
-| D-2 | Two purchase clicks before the reply | **PASS†** | Category statement only |
-| D-3 | Several purchases in flight, then resync | **PASS†** | Category statement only |
-| MOB-1 | Portrait layout | **PASS†** | On a recent iPhone in portrait, the layout was checked and the HUD and upgrade controls remained accessible. **Observations:** the upgrade panel partly covers the slime (the guide says to record that as an observation, not a FAIL), and text appeared small. Not itemized: "text is readable", not under the notch or top-bar buttons, and the panel not covering the pills or health bar. The Android phone (S22 Ultra) and the small phone are under MOB-7. |
-| MOB-2 | Landscape layout | **PASS†** | On a recent iPhone in landscape, the layout was checked and the HUD and upgrade controls remained accessible. The same sub-conditions were not itemized, including the notch side. |
+| B-1 | Combat independent per player | **PASS** | Owner expressly confirmed Player1's ten attacks led to Stage 2, Gold 5, HP 11/11; Player2 remained Stage 1, Gold 0, HP 10/10 with no new `[QA]` Output. |
+| B-2 | Purchases independent per player | **PASS** | Owner expressly confirmed Player1 Level 2, Gold 0, Tap Damage 2 after purchase, while Player2 remained Level 1, Gold 0, Tap Damage 1 and received no new `[QA]` Output. |
+| B-3 | Request ids per player | **PASS** | Owner expressly confirmed Player2's id 1 request returned `InsufficientFunds` and red `Not enough Gold`, leaving Player2 Gold 0/Level 1, with Player1 Gold/Level/Damage unchanged and no new Player1 `[QA]` Output. |
+| B-4 | Cannot act for another player | **PASS†** | Producer **approves/attests the previously run test as PASS without errors**, but did not itemize the specific Player2 `id=2 Ok`, Player2 Gold 5→0 / Level 1→2, and unchanged Player1 values/Output checks in this follow-up. These remain reviewer evidence details, not observed failures. |
+| B-5 | Replay protection still independent | **PASS†** | Producer blanket-attests this test passed without errors. Earlier summary-level multiplayer replay protection was positive, but the exact per-player replay sequence, response count and unaffected state have not been itemized. |
+| D-4 | Startup sync with heavy lag | **PASS†** | Earlier owner report: initial sync recovered after about 4 seconds under configured simulated lag. Producer blanket-attests success without errors; **independent evidence that lag was effective**, as opposed to only selected in settings, remains incomplete. |
+| D-1 | Taps under lag | **PASS†** | Earlier owner report: 10 taps under lag produced 9 hits, 1 defeat (Stage 2). Producer blanket-attests success without errors. Whether simulated lag had the required timing effect needs condition-specific confirmation. |
+| D-2 | Two purchase clicks before the reply | **PASS†** | Earlier owner report: request id 2 returned Ok, id 3 returned InsufficientFunds, with no money duplication. Producer blanket-attests no errors; timing and UI conditions under *effective* simulated lag remain subject to review. |
+| D-3 | Several purchases in flight, then resync | **PASS†** | Earlier owner report: rapid purchases from Level 3 Gold 16 converged to Level 5 Gold 5; id 6 InsufficientFunds; resync Gold 5, Upgrade L5, Combat Stage2 11/11. Producer blanket-attests no errors; effective lag and precise transient visual checks are not itemized. |
+| MOB-1 | Portrait layout | **PASS†** | A recent notched iPhone portrait had accessible HUD and panel, with small text and the panel partly over the slime (not an automatic FAIL). Producer blanket-attests it worked without errors, but has not explicitly addressed whether the text was readable and notch/safe-area and prohibited-overlap criteria. |
+| MOB-2 | Landscape layout | **PASS†** | Recent notched iPhone landscape: HUD and panel accessible; producer blanket-attests success without errors. Specific confirmation that the notch did not cover important UI and that text/controls were readable remains pending. |
 | MOB-3 | One tap = one attack | **PASS** | 10 emulated touches, each `processed=false`, in landscape: exactly 10 attacks (9 hits + 1 defeat). Device not stated. |
 | MOB-4 | Panel and button taps never attack | **PASS** | 10 panel touches + 10 button touches: **0 attacks**, in both portrait and landscape |
 | MOB-5 | Combat-area edges and insets | **PASS** | 15 touches on the HUD pills: 0 attacks. 2 touches just outside the panel: 2 attacks. Both orientations checked. Device not stated; the guide requires the notched phone (R-7). |
@@ -221,9 +223,9 @@ Every check uses the formulas in `ProgressionConfig` and `GameConfig` and the gu
 | MOB-7 | Small phone and tablet | **PASS** | Owner confirmed iPhone 7 landscape as well as portrait, with no attacks from upgrade panel/button touches, and separately confirmed iPad panel/button filtering in both orientations. iPad and Galaxy S22 Ultra portrait/landscape were tested earlier. No verbatim device touch logs supplied. |
 | MOB-8 | Touchscreen PC (optional) | **NOT RUN** | Optional |
 | MOB-9 | Physical phone (optional) | **NOT RUN** | Optional |
-| N-1 | BigNum spot checks | **PASS†** | Category statement only. The `[QA] BigNum spot checks: PASS` line was not quoted. |
+| N-1 | BigNum spot checks | **PASS†** | Owner previously reported the BigNum spot checks passed; producer blanket-attests they worked without errors. The actual `[QA] BigNum spot checks: PASS` Output line was not supplied. |
 | N-2 | Purchases with a huge Gold balance | **PASS** | With Gold `1.5e400`, three upgrades took Level 25 → 28 and Tap Damage 75 → 78, 81, 84. Not itemized: Gold still showing `1.5e400` after each purchase, and the `Upgraded!` messages. |
-| N-3 | Huge tap damage display | **PASS†** | Category statement only |
+| N-3 | Huge tap damage display | **PASS†** | Owner previously reported huge Tap Damage `1e5000` displayed properly and producer blanket-attests success without errors. The exact capped-damage popup at huge damage was not specifically confirmed in this follow-up. |
 | N-4 | High-stage HP display | **PASS** | Stage 600 displayed HP of about `1.14e44` in scientific notation (Appendix E.3 value). The Gold suffix display was not itemized. |
 | N-5 | Health bar at large values | **PASS** | At stage 600, tap damage `6e43` left `5.4109650808412066e43 / 1.1410965080841207e44`, and the bar showed about 47 % (3.3). The next defeat advanced to stage 601 with full HP. |
 | N-6 | Long numbers on the smallest phone | **PASS** | iPhone 7 portrait: `Gold: 1.5e400` and `Tap Damage: 1e5000` stayed inside their pills, with the text wrapped onto two lines (observation). Checked visually; screenshot captured (not in the repository). |
@@ -243,18 +245,24 @@ Guide tests (62):
 
 | PASS | PASS† (needs confirmation) | FAIL | PARTIAL | BLOCKED | NOT RUN (optional) | NOT VERIFIED |
 |---|---|---|---|---|---|---|
-| **37** | **20** | **1** | **1** | **0** | **2** | **1** (optional P-4) |
+| **47** | **10** | **1** | **1** | **0** | **2** | **1** (optional P-4) |
 
-On the template's four-mark line: **PASS 37 (+20 conditional), FAIL 1 (producer-accepted nonblocking exception), BLOCKED 0, NOT RUN 2 (optional).** Another 1 PARTIAL (P-3) and 1 optional NOT VERIFIED result do not fit those four marks; neither is a pass.
+On the template's four-mark line: **PASS 47 (+10 producer-attested conditional PASS†), FAIL 1 (producer-accepted nonblocking exception), BLOCKED 0, NOT RUN 2 (optional).** Another 1 PARTIAL (P-3) and 1 optional NOT VERIFIED result do not fit those four marks; neither is a pass. The 10 conditional items have **producer PASS sign-off**, but their detailed guide conditions were not each specifically attested and remain independently unapproved.
 
-- **PASS:** P-1, P-2, P-5, T-1, T-2, M1-1, M1-6, U-3, U-4, U-5, U-6, U-7, A-1, A-2, A-3, A-4, A-5, A-6, A-7, MOB-3, MOB-4, MOB-5, MOB-6, MOB-7, N-2, N-4, N-5, N-6, L-1, L-2, L-3, L-4, C-1, C-2, C-3, C-4, C-5.
-- **PASS†:** M1-3, M1-4, M1-5, M1-7, M1-8, U-1, U-2, B-1 to B-5, D-1 to D-4, MOB-1, MOB-2, N-1, N-3.
+- **PASS:** P-1, P-2, P-5, T-1, T-2, M1-1, M1-3, M1-4, M1-5, M1-6, M1-7, M1-8, U-1, U-2, U-3, U-4, U-5, U-6, U-7, A-1, A-2, A-3, A-4, A-5, A-6, A-7, B-1, B-2, B-3, MOB-3, MOB-4, MOB-5, MOB-6, MOB-7, N-2, N-4, N-5, N-6, L-1, L-2, L-3, L-4, C-1, C-2, C-3, C-4, C-5.
+- **PASS† (producer blanket-approved; still not independently evidenced to all guide criteria):** B-4, B-5, D-1 to D-4, MOB-1, MOB-2, N-1, N-3.
 - **FAIL:** M1-2 (producer formally accepted Low/nonblocking deviation; strict FAIL retained).
 - **PARTIAL:** P-3 (initial frozen checker mismatches two intentional candidate files; final P-5 candidate-adapted parity passed).
 - **BLOCKED:** none.
 - **NOT RUN:** MOB-8, MOB-9.
 - **NOT VERIFIED:** P-4 (optional).
 - **Added check X-1:** PASS (not counted in the 62).
+
+Changes from revision 6 (further owner confirmations and blanket producer sign-off on 2026-11-03):
+- **PASS† → PASS on condition-specific owner confirmation:** M1-3, M1-4, M1-5, M1-7, M1-8, U-1, U-2, B-1, B-2, B-3.
+- **Producer expressly attested** the other ten conditional checks were performed successfully without errors and asked to approve them all; this is recorded without pretending exact measurements or device safety observations were supplied. These remain PASS† for independent audit against every guide criterion.
+- **General error check:** owner reports no errors in those tests; does not replace requested original Output files.
+- Candidate adoption and merge are still unapproved pending separate release/package review.
 
 Changes from revision 5 (owner confirmations on 2026-11-03):
 - **PARTIAL → PASS:** U-3, U-4, U-7, MOB-6, MOB-7, C-5.
@@ -314,7 +322,7 @@ Notes: recorded as a strict FAIL, as instructed. No script was edited.
 | # | Question | Why it blocks | Status |
 |---|---|---|---|
 | R-1 | Which expected values did the P-5 checker use for `BigNum` and `BigNumTests`? | An unmodified Appendix B cannot pass with the candidate | **RESOLVED.** The checker was adapted with the candidate values (2.1), and the Output is quoted in section 2. The initial 22/24 was the intended difference. |
-| R-2 | Confirm no unexpected red Output lines **across all PASS/PASS† tests**, preferably with `QA_*.txt` files, and check 20 remaining PASS† rows individually. The owner did explicitly confirm no red errors for L-1 and C-5. A-4 is now fully confirmed. | Guide 0.3 requires all conditions and no red errors | **OPEN, narrowed** |
+| R-2 | (a) The owner/producer reports that the remaining tests were run **without errors**, but original `QA_*.txt` logs were not supplied; confirm whether this statement includes all previously credited tests and the Studio warnings classification. (b) The **ten formerly conditional** M1-3/4/5/7/8, U-1/2, B-1/2/3 rows now have criterion-specific owner confirmation and PASS. (c) The **ten remaining PASS†** (B-4/5, D-1/2/3/4, MOB-1/2, N-1/3) have a blanket producer PASS approval, not condition-specific detail; see 3.2. (d) The guide also needs the unitemized conditions in some existing PASS rows checked (M1-6, U-5/6, A-2, N-2/4, C-3 and similar). | The pinned guide requires every PASS condition; producer attestation is recorded, but not misrepresented as independent verified log evidence. | **PARTIALLY RESOLVED; remaining condition-specific independent closure requested** |
 | R-3 | M1-2: reproduced Focus overwrite. **Producer formally accepted Low-severity/nonblocking deviation** on 2026-11-03, retaining strict FAIL. Reviewer may characterize source as code, guide or Studio issue. C.3/C.4 verbatim lines are still absent. | Producer exception addresses release-blocking disposition, but not underlying technical root cause / missing verbatim logs | **Producer disposition RESOLVED; technical/log follow-up open, producer-deemed nonblocking** |
 | R-4 | Repeat L-1 with unambiguous player identities | Per-player service cleanup on leave is a reliability and isolation requirement | **RESOLVED.** Repeated with Player2 captured through the bridge; `afterLeave` printed `currency=false combat=false level=nil session=false gold=nil`. L-1 PASS. |
 | R-5 | Run T-2 (negative control) and L-3 (restart is fresh). P-4 is optional. | Required tests with no result | **RESOLVED.** T-2 PASS (`1 FAILED, 67 passed`, then `ALL PASSED (67 tests)`); L-3 PASS. P-4 (optional) still has no result. |
