@@ -17,9 +17,11 @@ Every classification was rechecked against the pinned guide's PASS criteria.
 
 The place file `Emberbound_M2_DEFECT001_QA.rbxl` was saved afterwards. The open questions that remain are preserved in section 6.
 
+**Revision 4.** Records Codex's completed independent **read-only** review of candidate `9a988c9`, including native Luau checks (section 2.2), and corrects R-9 and the related wording. No test result changed.
+
 | | |
 |---|---|
-| **Overall status** | **CONDITIONAL — NOT A PASS.** 1 FAIL (M1-2, reproduced). The owner proposes a Low-severity, nonblocking deviation for it, which **needs formal producer approval** and has not been granted. Also open: 7 PARTIAL, and 21 passes that rest only on a category-level or summary-level statement and need confirming (PASS†). No test is BLOCKED, and every required test now has a result. Section 6 lists the open release-blocking questions. |
+| **Overall status** | **CONDITIONAL — NOT A PASS.** 1 FAIL (M1-2, reproduced). The owner proposes a Low-severity, nonblocking deviation for it, which **needs formal producer approval** and has not been granted. Also open: 7 PARTIAL, and 21 passes that rest only on a category-level or summary-level statement and need confirming (PASS†). No test is BLOCKED, and every required test now has a result. Codex's independent review (2.2) did **not** approve candidate adoption, full QA acceptance or PR #1 merge readiness. Section 6 lists the open release-blocking questions. |
 | **Provenance** | The project owner ran the tests in Roblox Studio and reported the results through the Roblox Studio testing conversation: written observations, plus quoted Output lines for P-5 (both runs), T-2, L-1, C-3, C-4 and the cleanup counts. **No Output files (`QA_*.txt`) or screenshots are in the repository.** A screenshot was captured for N-6; it is not in the repository. Claude Code wrote this report from the owner's reports and repository evidence. No observation, log, screenshot, measurement or test action was added beyond what the owner reported; where something is derived or inferred, it says so. |
 | **Where the referenced files are** | The tested code, `review/DEFECT-001_REPORT.md`, `review/DEFECT-001B_REPORT.md` and `review/DEFECT-001B_CODEX_HANDOFF.md` are on branch `candidate/m2-defect-001-ftz-subnormal` at `9a988c9`. The pinned guide and template are on PR #1 head `2b832d2`, and also on `9a988c9`. This report is committed on `claude/emberbound-m2-regression-testing-56vtjh`, which holds an older, unpinned copy of the guide; review against the pinned version. |
 | **Not done** | PR #1 is not merged. Milestone 2 is not marked complete. Milestone 2.1 is not started. No gameplay source was changed. |
@@ -54,7 +56,7 @@ The template allows PASS, FAIL, BLOCKED and NOT RUN. Three extra marks keep the 
 | H-check result | Not reported directly. The temporary QA bridge **was used**: the L-1 repeat captured Player2 through it, and it was deleted before each final P-5. The guide uses the bridge only when the helpers are "not connected" (Appendix D.4), so the inferred H-check case is "Helpers not connected, used the EmberboundQA bridge". The H-4 result itself was not reported (R-11). |
 | Devices used in the emulator | A recent iPhone (model not stated); iPhone 7; a large iPad (model not stated); Samsung Galaxy S22 Ultra |
 | Physical phone | None (MOB-9 not run) |
-| Studio Script Analysis | Reported from earlier testing: **0 errors, 6 warnings**, which the owner described as unrelated. The warning texts, and which code version was analyzed, were not supplied. This is a Studio observation only. The separate `luau-compile` / `luau-analyze` checks requested in `review/DEFECT-001B_REPORT.md` §8 have still not been run (R-9). |
+| Studio Script Analysis | Reported from earlier testing: **0 errors, 6 warnings**, which the owner described as unrelated. The warning texts, and which code version was analyzed, were not supplied. This is a Studio observation, and evidence for it is still incomplete: the six warnings were not listed or classified, and coverage of the candidate files was not shown (R-9). The **native** (non-Studio) compile and strict-analysis checks are separate; Codex ran them in its independent review (2.2). |
 
 ### 2.1 Candidate source files (not in any approved manifest)
 
@@ -63,6 +65,25 @@ The template allows PASS, FAIL, BLOCKED and NOT RUN. Three extra marks keep the 
 | `src/ReplicatedStorage/Shared/BigNum.luau` | `c7474136d45bada326484a786fd60ff5ca02a18a12b4012fbcfca01a3950244a` | `e337573da95f481a022ed0e6f31dfefdacb0755921214cdb89cdb53d8e08f674` | 16287 / 532 / 3188390913 |
 | `src/ServerScriptService/Tests/BigNumTests.luau` | `0c13e4842d1420b285243e824c012bca32cbe13e09df278af53ae709d914d97a` | `8d28a9bf19fa29cf3ccf53dc5dd066f2777ef85548a35911b19f1feab4113b51` | 23275 / 578 / 1646015937 |
 | The other 22 files | equal to round 3 | equal to round 3 | as in guide Appendix A (unchanged rows) |
+
+### 2.2 Independent review of the candidate (Codex; native and offline, not Roblox Studio)
+
+Codex completed an independent **read-only** review of `9a988c9254e07ac50dcf32fe4b55ba975613390d`.
+- **How it was delivered:** directly in the owner's conversation. It was not posted as GitHub review comments, and no review file is in the repository.
+- **What it does and does not cover:** these are native/offline results, not Roblox Studio results. The Studio results are in section 4. Codex's findings, as relayed by the owner:
+
+| Check (native / offline) | Codex result |
+|---|---|
+| BigNum technical verdict | **PASS WITH RISKS**. No additional blocking numerical or serialization defect was identified. |
+| Native Luau 0.745 compilation of both changed files (`BigNum.luau`, `BigNumTests.luau`) | **PASS** |
+| BigNum strict analysis, old and new type solvers | **PASS** |
+| Test-body analysis with typed context adapters (`BigNumTests.luau`) | **PASS** |
+| Unit tests, offline: gradual underflow, FTZ, FTZ plus the modeled formatter failure, and the formatter model alone | **67/67** in each mode |
+| Historical review probes (`review/offline-harness`), offline | **75/75** gradual; **74/75** FTZ. Codex attributes the remaining FTZ failure to an outdated differential expectation in the historical probe. It is reported here as **74/75**, not 75/75. |
+| Full Roblox-aware Studio Script Analysis, and classification of the six warnings | **Evidence still needed** (R-9) |
+| Candidate adoption, full QA acceptance, PR #1 merge readiness | **NOT APPROVED** |
+
+The candidate branch's `review/DEFECT-001B_REPORT.md` was written before this review, from the translated Lua 5.1 harness. It lists 75/75 probes under FTZ and says the native Luau checks were not run. For the FTZ probe count and the native checks, Codex's native results supersede that report. The specific risks behind "PASS WITH RISKS" are not itemized in this report.
 
 ## 3. Reconciliation with the guide and the repository
 
@@ -271,7 +292,7 @@ Notes: recorded as a strict FAIL, as instructed. No script was edited.
 | R-6 | Is the incomplete U-4 (natural progression to level 25), with U-3, acceptable given that U-5 verified the boundary with granted Gold? Also: U-7's visual "nothing changes" condition. | Decision for the reviewer and producer (bounded precision contract, decision 1) | Open |
 | R-7 | Mobile:<br>• MOB-6: the 4th rotation and the PlayerGui duplicate-HUD check.<br>• MOB-7: iPhone 7 landscape.<br>• MOB-1/MOB-2: confirm "text is readable", given that text appeared small in portrait, and the notch/overlap conditions.<br>• MOB-3 and MOB-5: name the device; MOB-5 requires the notched phone. | Mobile is a primary platform. MOB-5/MOB-6 cover the audit's inset and rotation risks. | Open |
 | R-8 | C-5: confirm no noticeable slowdown and no red errors over the long session (Output file). | These are C-5 PASS conditions | Open |
-| R-9 | The tested code is the **DEFECT-001B candidate**, not the approved release. Still needed before adoption:<br>• the independent Codex review of the candidate (`review/DEFECT-001B_CODEX_HANDOFF.md`);<br>• `luau-compile` / `luau-analyze` results (not run);<br>• for the reported Studio Script Analysis (0 errors, 6 warnings): the warning texts, and confirmation that it covered the candidate files;<br>• a reviewed revision of the pin, manifest round 4, the parity tables, the installer payload and the test count (67). | These QA results apply only to `9a988c9`'s `src/` | Open |
+| R-9 | The tested code is the **DEFECT-001B candidate**, not the approved release.<br>**Done (native/offline, 2.2):** Codex's independent read-only review — BigNum technical verdict PASS WITH RISKS, no additional blocking numerical or serialization defect; native Luau 0.745 compilation of both changed files PASS; BigNum strict analysis (old and new solvers) PASS; test-body analysis with typed context adapters PASS; 67/67 offline in all four floating-point modes; historical probes 75/75 gradual and **74/75 FTZ** (outdated differential expectation).<br>**Still needed:**<br>• Roblox Studio evidence: full Roblox-aware Script Analysis covering the candidate files, with the six warnings listed and classified (reported so far: 0 errors, 6 warnings);<br>• the producer's decision on the risks behind "PASS WITH RISKS";<br>• a reviewed revision of the pin, manifest round 4, the parity tables, the installer payload and the test count (67). | These QA results apply only to `9a988c9`'s `src/`. Codex did **not approve** candidate adoption, full QA acceptance or PR #1 merge readiness. | Open (independent review and native analysis done; adoption NOT APPROVED) |
 | R-10 | Supply the missing setup facts: tester, Studio version, OS, install method, the test dates other than November 3, and the date of the 03:32 P-5. Also the screenshots: the N-6 capture and F-1. | Traceability required by guide 12.4 | Open |
 | R-11 | Confirm the H-check outcome (the H-4 line). The bridge was demonstrably used (L-1 repeat). Was that because the helpers were "not connected"? | Shows how the helper-based results (U-5, U-6, A-5, N-2 to N-6, C-3) reached the live game | Open (bridge use confirmed; H-4 result not reported) |
 | R-12 | A-4: was it the guide's single request with id 100 (`result id=100 InsufficientFunds`), or 100 separate requests? | 100 replies to 100 requests would contradict the 10-request burst limit that A-5 and A-6 show working | Open |
@@ -291,7 +312,7 @@ Notes: recorded as a strict FAIL, as instructed. No script was edited.
 
 ## 8. For the independent (Codex) review
 
-Review this report read-only against `M2_STUDIO_REGRESSION_GUIDE.md` (as on PR #1 head `2b832d2`), the template, `review/DEFECT-001B_REPORT.md` and the code at `9a988c9`. In particular:
+Codex's read-only review of the candidate code is recorded in 2.2. For any further review of **this QA report**, review it read-only against `M2_STUDIO_REGRESSION_GUIDE.md` (as on PR #1 head `2b832d2`), the template, `review/DEFECT-001B_REPORT.md` and the code at `9a988c9`. In particular:
 1. Check every mark against the guide's PASS/FAIL rules (0.3). Nothing should be credited beyond the evidence stated in each row.
 2. Check the arithmetic in 3.3 against `ProgressionConfig`, `GameConfig` and Appendix E, and the deviations in 3.1 and 3.4.
 3. Assess F-1 (M1-2) from `ArenaView.luau:415-440` and the repeat evidence (Focus reverts every RenderStepped frame). Say whether it is a code defect, a guide error or a Studio-dependent risk, and comment on the owner's proposed Low/nonblocking disposition. Approving it is the producer's decision, not the reviewer's.
