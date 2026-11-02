@@ -3,7 +3,7 @@
 
     python3 tools/m2/tests/run_tests.py
 
-1. Frozen commit, 24 files, SHA-256 against SOURCE_HASHES.txt round 3 (via the generator).
+1. Source commit (round 4: 9a988c9), 24 files, SHA-256 against SOURCE_HASHES.txt round 4 (via the generator).
 2. Deterministic generation: two in-memory builds and the committed files are byte-identical.
 3. Independent decoding: every embedded string is decoded by a second decoder written here
    and compared with the frozen bytes read straight from git.
@@ -13,7 +13,8 @@
    damaged and truncated text, joined lines, CRLF, and rollback after injected failures.
 6. The installed result from step 5 is checked with an offline replica of the Appendix B
    parity logic, using the expected values parsed from M2_STUDIO_REGRESSION_GUIDE.md.
-7. Git: src/ and SOURCE_HASHES.txt are unchanged; only tools/m2/ differs from the base.
+7. Git (round 4 adoption scope): src/ is unchanged from the source commit; SOURCE_HASHES.txt keeps rounds 1-3
+   (hash lines unchanged) and adds round 4; only release-package files changed since the source commit.
 
 None of this runs Roblox Studio. Studio behaviour must still be tested by the project owner.
 """
@@ -36,7 +37,9 @@ sys.path.insert(0, str(TOOLS_DIR))
 import generate_installer as gen  # noqa: E402
 
 REPO = Path(subprocess.check_output(["git", "-C", str(TOOLS_DIR), "rev-parse", "--show-toplevel"]).decode().strip())
-BASE_COMMIT = "2b832d267cc7461b5bebb138fe861d5b5e4ed0e9"  # PR #1 head this branch starts from
+# Round 4 adoption scope: the only paths that may change after the source commit (no gameplay code).
+PACKAGE_PATHS = ("tools/m2/", "review/", "SOURCE_HASHES.txt", "M2_STUDIO_REGRESSION_GUIDE.md", "M2_REVIEW_GUIDE.md",
+                 "M2_REQUIREMENTS.md", "README.md", "CODEX_REVIEW_HANDOFF.md")
 FORBIDDEN = [
     "HttpService", "DataStore", "MemoryStore", "MessagingService", "MarketplaceService", "TeleportService",
     "Publish", "SavePlace", "InsertService", "AssetService", "PluginManager", "plugin", "loadstring",
@@ -71,7 +74,7 @@ def main() -> int:
     # 1. Frozen source identity.
     try:
         files = gen.load_sources(REPO)
-        record(True, f"frozen commit {gen.FROZEN_COMMIT} resolves; src/ holds exactly 24 files; all SHA-256 match SOURCE_HASHES.txt round 3")
+        record(True, f"source commit {gen.FROZEN_COMMIT} resolves; src/ holds exactly 24 files; all SHA-256 match SOURCE_HASHES.txt round 4")
     except gen.GenerationError as error:
         record(False, "frozen source identity", str(error))
         return finish()
@@ -153,16 +156,35 @@ def main() -> int:
             else:
                 record(False, "no installed dump to check")
 
-    # 7. Repository hygiene.
+    # 7. Repository hygiene (round 4 adoption scope).
     src_same = subprocess.run(["git", "-C", str(REPO), "diff", "--quiet", gen.FROZEN_COMMIT, "--", "src"]).returncode == 0
-    record(src_same, "working tree src/ is identical to the frozen commit")
-    hashes_same = subprocess.run(["git", "-C", str(REPO), "diff", "--quiet", BASE_COMMIT, "--", "SOURCE_HASHES.txt"]).returncode == 0
-    record(hashes_same, "SOURCE_HASHES.txt is unchanged from the base commit")
-    changed = subprocess.check_output(["git", "-C", str(REPO), "diff", "--name-only", BASE_COMMIT]).decode().split()
+    record(src_same, "working tree src/ is identical to the source commit (no gameplay change in the adoption)")
+    old_rounds = manifest_rounds(subprocess.check_output(["git", "-C", str(REPO), "show", f"{gen.FROZEN_COMMIT}:SOURCE_HASHES.txt"]).decode())
+    new_rounds = manifest_rounds((REPO / "SOURCE_HASHES.txt").read_text())
+    kept = all(new_rounds.get(n, (None, None))[1] == old_rounds[n][1] for n in old_rounds)
+    record(sorted(old_rounds) == ["1", "2", "3"] and kept,
+           "SOURCE_HASHES.txt rounds 1-3 keep their hash lines unchanged (historical manifests preserved)")
+    record("4" in new_rounds and "current" in new_rounds["4"][0] and all("historical" in new_rounds[n][0] for n in ("1", "2", "3")),
+           "round 4 is the only current manifest; rounds 1-3 are marked historical")
+    changed = subprocess.check_output(["git", "-C", str(REPO), "diff", "--name-only", gen.FROZEN_COMMIT]).decode().split()
     untracked = subprocess.check_output(["git", "-C", str(REPO), "ls-files", "--others", "--exclude-standard"]).decode().split()
-    outside = [p for p in changed + untracked if not p.startswith("tools/m2/")]
-    record(not outside, "every change since the base commit is under tools/m2/", ", ".join(outside))
+    outside = [p for p in changed + untracked if not p.startswith(PACKAGE_PATHS)]
+    record(not outside, "every change since the source commit is a release-package file (tools/m2/, review/, manifest, guides, docs)", ", ".join(outside))
     return finish()
+
+
+def manifest_rounds(text: str) -> dict[str, tuple[str, list[str]]]:
+    """Round number -> (heading line, hash lines) of SOURCE_HASHES.txt."""
+    rounds: dict[str, tuple[str, list[str]]] = {}
+    current = None
+    for line in text.splitlines():
+        heading = re.match(r"## Round (\d+)", line)
+        if heading:
+            current = heading.group(1)
+            rounds[current] = (line, [])
+        elif current and re.fullmatch(r"[0-9a-f]{64}  src/\S+", line):
+            rounds[current][1].append(line)
+    return rounds
 
 
 def replicate_appendix_b(dump: str) -> None:

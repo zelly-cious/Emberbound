@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """Generate the Emberbound Milestone 2 Roblox Studio installer (task M2-TOOLS-001).
 
-Reads the 24 Luau sources from the frozen commit with git (never from the working
-tree), verifies them against the round 3 SHA-256 manifest in that commit and against
-Appendices A and B of M2_STUDIO_REGRESSION_GUIDE.md, then fills
-tools/m2/InstallM2.template.lua and writes:
+Reads the 24 Luau sources from the release source commit with git (never from the working
+tree). Since the round 4 BigNum adoption that commit is the reviewed candidate 9a988c9. It
+verifies them against the round 4 SHA-256 manifest and against Appendices A and B of
+M2_STUDIO_REGRESSION_GUIDE.md, then fills tools/m2/InstallM2.template.lua and writes:
 
     tools/m2/InstallM2.lua             the installer to paste into the Studio Command Bar
     tools/m2/INSTALLER_MANIFEST.txt    SHA-256 of the installer and of every embedded file
+
+Round 4 is recorded in SOURCE_HASHES.txt at HEAD, after the source commit, so the manifest is read
+from HEAD. The source commit must be an ancestor of HEAD, and the round 4 heading must name it.
 
 The output is deterministic: no timestamps, LF line endings,
 ASCII only. After writing, the generated Lua is re-read and every embedded string is
@@ -27,9 +30,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-FROZEN_COMMIT = "e9d878d94155610558c9c6252d76f202dfd956b4"
-INSTALLER_VERSION = "1.1.0"
-MANIFEST_SECTION = "## Round 3"
+FROZEN_COMMIT = "9a988c9254e07ac50dcf32fe4b55ba975613390d"  # release source: SOURCE_HASHES.txt round 4
+INSTALLER_VERSION = "1.2.0"
+MANIFEST_SECTION = "## Round 4"
 GUIDE_PATH = "M2_STUDIO_REGRESSION_GUIDE.md"
 
 TOOLS_DIR = Path(__file__).resolve().parent
@@ -145,12 +148,16 @@ def lua_unescape(body: str) -> bytes:
 
 
 def read_manifest(repo: Path) -> dict[str, str]:
-    text = git(repo, "show", f"{FROZEN_COMMIT}:SOURCE_HASHES.txt").decode()
+    if subprocess.run(["git", "-C", str(repo), "merge-base", "--is-ancestor", FROZEN_COMMIT, "HEAD"]).returncode != 0:
+        raise GenerationError(f"the source commit {FROZEN_COMMIT} is not an ancestor of HEAD")
+    text = git(repo, "show", "HEAD:SOURCE_HASHES.txt").decode()
     lines = text.splitlines()
-    try:
-        start = next(i for i, line in enumerate(lines) if line.startswith(MANIFEST_SECTION))
-    except StopIteration as exc:
-        raise GenerationError(f"SOURCE_HASHES.txt at the frozen commit has no '{MANIFEST_SECTION}' section") from exc
+    starts = [i for i, line in enumerate(lines) if line.startswith(MANIFEST_SECTION)]
+    if len(starts) != 1:
+        raise GenerationError(f"SOURCE_HASHES.txt at HEAD must have exactly one '{MANIFEST_SECTION}' section")
+    start = starts[0]
+    if FROZEN_COMMIT[:7] not in lines[start] or "current" not in lines[start]:
+        raise GenerationError(f"the '{MANIFEST_SECTION}' heading must name the source commit {FROZEN_COMMIT[:7]} and be marked current")
     manifest: dict[str, str] = {}
     for line in lines[start + 1 :]:
         if line.startswith("## "):
@@ -196,7 +203,7 @@ def load_sources(repo: Path) -> list[dict]:
         raise GenerationError(f"src/ at the frozen commit holds {len(tree)} files that do not match the 24 expected files")
     manifest = read_manifest(repo)
     if sorted(manifest) != expected_tree:
-        raise GenerationError("round 3 manifest does not list exactly the 24 expected files")
+        raise GenerationError("the round 4 manifest does not list exactly the 24 expected files")
     files = []
     for path, class_name in LAYOUT:
         data = git(repo, "cat-file", "blob", f"{FROZEN_COMMIT}:{repo_file(path)}")
@@ -368,7 +375,7 @@ def main() -> int:
     OUTPUT_PATH.write_bytes(lua.encode("ascii"))
     MANIFEST_PATH.write_bytes(manifest.encode("ascii"))
     data = lua.encode("ascii")
-    print(f"frozen commit {FROZEN_COMMIT}: {len(files)} files, all SHA-256 match SOURCE_HASHES.txt round 3")
+    print(f"source commit {FROZEN_COMMIT}: {len(files)} files, all SHA-256 match SOURCE_HASHES.txt round 4 (at HEAD)")
     print("Appendix A and B of the regression guide match the computed values")
     print(f"wrote {OUTPUT_PATH.relative_to(repo)} ({len(data)} bytes, sha256 {hashlib.sha256(data).hexdigest()})")
     print(f"wrote {MANIFEST_PATH.relative_to(repo)}")

@@ -2,7 +2,7 @@
 	Emberbound Milestone 2: one-time Roblox Studio installer (task M2-TOOLS-001)
 	Installer version {{INSTALLER_VERSION}}
 	Frozen source commit {{FROZEN_COMMIT}}
-	{{FILE_COUNT}} files; SHA-256 manifest: SOURCE_HASHES.txt, round 3
+	{{FILE_COUNT}} files; SHA-256 manifest: SOURCE_HASHES.txt, round 4 (BigNum DEFECT-001/001B adoption)
 
 	GENERATED FILE. tools/m2/generate_installer.py builds it from the frozen commit and
 	tools/m2/InstallM2.template.lua. Do not edit it, except the ONE setting marked below.

@@ -383,7 +383,10 @@ local damage = {
 		return replaceOnce(text, "\tpath = \"ServerScriptService/ServerInit\",\n\tclassName = \"Script\",", "\tpath = \"ServerScriptService/ServerInit\",\n\tclassName = \"ModuleScript\",")
 	end, "does not match the expected" },
 	{ "a recorded checksum changed", function(text)
-		return replaceOnce(text, "\tadler32 = 3533007835,", "\tadler32 = 3533007836,")
+		-- FILES[1]'s recorded Adler-32, read from the installer so the test does not depend on the payload.
+		local recorded = string.match(text, "\tadler32 = (%d+),", fileBlockStart(text, 1))
+		check(recorded ~= nil, "FILES[1] has no recorded adler32")
+		return replaceOnce(text, "\tadler32 = " .. recorded .. ",", "\tadler32 = " .. string.format("%.0f", tonumber(recorded) + 1) .. ",")
 	end, "checksum mismatch" },
 	{ "one source line dropped", function(text)
 		local start = fileBlockStart(text, 12)
