@@ -4,27 +4,27 @@ This guide is for the project owner. It replaces the manual copy-and-paste of 24
 
 | | |
 |---|---|
-| Installer file | `tools/m2/InstallM2.lua` v1.1.0, at commit `adb939c6958786f95a6551bde7e4d689fd440aea` on branch `feature/m2-tools-001-installer` |
-| Installer SHA-256 | `87a22bb6cadcd0c374d928318f213e7719eaac86ffec8871966cecf2afe61cda` |
-| What it installs | Milestone 2 exactly as frozen at commit `e9d878d94155610558c9c6252d76f202dfd956b4`: 3 folders, 6 RemoteEvents, 24 scripts, and `Players.CharacterAutoLoads = false` |
+| Installer file | `tools/m2/InstallM2.lua` v1.2.0, at commit `d2e638188efaa2f8fdcd59a9c4b2c35e1763a396` on branch `feature/m2-bignum-adoption-round4` |
+| Installer SHA-256 | `b12fa7023f25a93d2e2a80aef0042c0cf962d81a7aef84dd4ca1fd06873623d4` |
+| What it installs | Milestone 2 as adopted in round 4, exactly as at source commit `9a988c9254e07ac50dcf32fe4b55ba975613390d` (`SOURCE_HASHES.txt` round 4: the round 3 release plus the BigNum DEFECT-001/001B correction): 3 folders, 6 RemoteEvents, 24 scripts, and `Players.CharacterAutoLoads = false` |
 | Where it may run | Only a **new Baseplate saved to a file** on your computer, in **Edit mode** |
 | Default behaviour | **Check only.** It changes nothing until you switch on its one setting |
-| Studio status | Tested offline only (plain Lua with a fake Roblox engine). **It has not been run in Roblox Studio yet.** Your run is the first real test |
+| Studio status | Tested offline only (plain Lua with a fake Roblox engine). **v1.2.0 has not been run in Roblox Studio.** It differs from v1.1.0 only in the embedded `BigNum` and `BigNumTests` and its version and commit constants. No Studio run of any installer version is on record: the M2 QA place's install method was not recorded. |
 
 **Never run the installer in a real game place.** It refuses places that already contain scripts, but a fresh Baseplate is the only place it is designed for.
 
 ## 1. Download the installer
 
-1. Open <https://github.com/zelly-cious/Emberbound/blob/adb939c6958786f95a6551bde7e4d689fd440aea/tools/m2/InstallM2.lua> (sign in to GitHub if asked). This link is pinned to the reviewed commit, so the file cannot change under you.
+1. Open <https://github.com/zelly-cious/Emberbound/blob/d2e638188efaa2f8fdcd59a9c4b2c35e1763a396/tools/m2/InstallM2.lua> (sign in to GitHub if asked). This link is pinned to the reviewed commit, so the file cannot change under you.
 2. Click the **Download raw file** button (the downward arrow at the top right of the file view). Save it somewhere easy to find, for example your Desktop. If your browser adds `.txt` to the name, that is fine.
    - Alternative: click **Raw**, then press **Ctrl+S** (Mac: **Cmd+S**) to save the page.
-3. Optional, but recommended: check that the download is complete and unchanged. Its SHA-256 must be `87a22bb6cadcd0c374d928318f213e7719eaac86ffec8871966cecf2afe61cda` (also the `installer_sha256` line in [`tools/m2/INSTALLER_MANIFEST.txt`](INSTALLER_MANIFEST.txt)):
+3. Optional, but recommended: check that the download is complete and unchanged. Its SHA-256 must be `b12fa7023f25a93d2e2a80aef0042c0cf962d81a7aef84dd4ca1fd06873623d4` (also the `installer_sha256` line in [`tools/m2/INSTALLER_MANIFEST.txt`](INSTALLER_MANIFEST.txt)):
    - Windows PowerShell: `Get-FileHash -Algorithm SHA256 $HOME\Desktop\InstallM2.lua`
    - macOS Terminal: `shasum -a 256 ~/Desktop/InstallM2.lua`
 
    Do this **before** you edit the file in step 5. If the values differ, download it again.
 
-Open the file in a **plain-text editor**: Notepad (Windows), TextEdit in plain-text mode (Mac: Format → Make Plain Text), or VS Code. Do not use Word or Google Docs. The file is about 228 KB and 5,600 lines long; that is normal.
+Open the file in a **plain-text editor**: Notepad (Windows), TextEdit in plain-text mode (Mac: Format → Make Plain Text), or VS Code. Do not use Word or Google Docs. The file is about 241 KB and 5,800 lines long; that is normal.
 
 ## 2. Create a fresh Baseplate and save it locally
 
@@ -57,8 +57,8 @@ Make sure you are in **Edit mode**: no playtest is running and the Play button i
 A successful check prints these lines (all start with `[M2 Installer]`). The examples in this guide come from the offline tests; Studio should print the same text, except that the `Place identity` numbers are whatever Studio reports (installation requires PlaceId 0):
 
 ```text
-[M2 Installer] Emberbound Milestone 2 installer v1.1.0
-[M2 Installer] Frozen source commit: e9d878d94155610558c9c6252d76f202dfd956b4
+[M2 Installer] Emberbound Milestone 2 installer v1.2.0
+[M2 Installer] Frozen source commit: 9a988c9254e07ac50dcf32fe4b55ba975613390d
 [M2 Installer] Mode: CHECK ONLY (ENABLE_INSTALLATION = false). Nothing will be changed.
 [M2 Installer] Embedded source: 24/24 files; sizes, line counts and checksums match the frozen commit.
 [M2 Installer] Studio mode: Edit mode
@@ -125,12 +125,12 @@ If Output says `INSTALLATION FAILED` instead, read the next lines:
 
 **Do not run the installer a second time in the same place.** A second run sees the first installation and refuses ("already exists"). That refusal is expected. Do not use Undo (Ctrl+Z) to remove an installation either; start from a new Baseplate instead.
 
-## 8. Run the independent Appendix B parity checker, then the 61 unit tests
+## 8. Run the independent Appendix B parity checker, then the 67 unit tests
 
 The installer's messages are not proof of source parity. The **unchanged Appendix B checker** in `M2_STUDIO_REGRESSION_GUIDE.md` is.
 
 1. Stay in **Edit mode**. Clear Output.
-2. Open Appendix B of the guide: <https://github.com/zelly-cious/Emberbound/blob/2b832d267cc7461b5bebb138fe861d5b5e4ed0e9/M2_STUDIO_REGRESSION_GUIDE.md#appendix-b--source-parity-checker>. Use the copy button at the top right of the code block to copy the whole checker.
+2. Open Appendix B of the round 4 guide: <https://github.com/zelly-cious/Emberbound/blob/5bcc94026dd21d6f261047f2baaa5f62ac73298f/M2_STUDIO_REGRESSION_GUIDE.md#appendix-b--source-parity-checker>. Its `BigNum` and `BigNumTests` rows hold the round 4 values; the round 3 checker would report those two files as different. Use the copy button at the top right of the code block to copy the whole checker.
 3. Click the Command Bar, paste (replacing anything already in it), then **run it** (section 3).
 4. **PASS** only if Output ends with exactly these two lines and no `[Parity] FAIL` line appears above them:
 
@@ -142,23 +142,23 @@ The installer's messages are not proof of source parity. The **unchanged Appendi
    This is test **P-3** in the regression guide; copy the two lines into your results file.
 5. If the checker prints `[Parity] RESULT: FAIL`: **do not change any script to make it pass.** Copy all of Output into a text file and report it (section 11).
 
-When P-3 passes, run the 61 unit tests (test **T-1** in the regression guide):
+When P-3 passes, run the 67 unit tests (test **T-1** in the regression guide):
 
 1. Clear Output and press **Play** (F5).
 2. Wait 5 seconds and read Output. A pass shows these 8 lines (other lines may appear between them):
 
    ```text
-   [Tests] BigNumTests: 25 passed, 0 failed
+   [Tests] BigNumTests: 31 passed, 0 failed
    [Tests] CombatFormulaTests: 4 passed, 0 failed
    [Tests] CombatRulesTests: 5 passed, 0 failed
    [Tests] ProgressionTests: 7 passed, 0 failed
    [Tests] RateLimiterTests: 3 passed, 0 failed
    [Tests] TestKitTests: 7 passed, 0 failed
    [Tests] WalletTests: 10 passed, 0 failed
-   [Tests] ALL PASSED (61 tests)
+   [Tests] ALL PASSED (67 tests)
    ```
 
-3. Continue with the rest of `M2_STUDIO_REGRESSION_GUIDE.md` (M1-1 onwards), recording results in `review/M2_STUDIO_QA_RESULTS_TEMPLATE.md`. In the results file, write "installed with tools/m2/InstallM2.lua v1.1.0" in the "How the scripts were installed" row.
+3. Continue with the rest of `M2_STUDIO_REGRESSION_GUIDE.md` (M1-1 onwards), recording results in `review/M2_STUDIO_QA_RESULTS_TEMPLATE.md`. In the results file, write "installed with tools/m2/InstallM2.lua v1.2.0" in the "How the scripts were installed" row.
 
 ## 9. If a fresh Baseplate is refused because of its PlaceId
 
@@ -174,7 +174,7 @@ The reviewer then decides how publication should be detected. Installation waits
 
 ## 10. If the Command Bar cannot take the whole file
 
-The installer is one large paste (about 228 KB). This has not been tried in Studio yet. First make sure you actually ran it (section 3: Enter in the one-line Command Bar, **Ctrl+Enter** / **Cmd+Enter** or **Run** in the multi-line one). If nothing happens even then, Studio freezes for a long time, or Output shows a red syntax error such as `unfinished string` or `'end' expected`, the paste probably did not arrive complete.
+The installer is one large paste (about 241 KB). This has not been tried in Studio yet. First make sure you actually ran it (section 3: Enter in the one-line Command Bar, **Ctrl+Enter** / **Cmd+Enter** or **Run** in the multi-line one). If nothing happens even then, Studio freezes for a long time, or Output shows a red syntax error such as `unfinished string` or `'end' expected`, the paste probably did not arrive complete.
 
 That is safe: Studio checks the whole text before running any of it, so a cut-off installer cannot change anything. The installer also checks the size and checksum of every embedded script before it does anything. Do **not** split the file into pieces yourself. Report what happened (section 11). A different installation method would need its own review.
 
