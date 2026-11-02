@@ -77,7 +77,11 @@ function Mock.newWorld()
 		servicesRequested = {},
 		mode = { studio = true, edit = true, running = false, errors = {}, values = {} },
 		placeId = 0,
+		gameId = 0,
 		placeIdError = false,
+		getServiceCalls = 0,
+		findServiceCalls = 0,
+		servicesCreated = {},
 		faults = {},
 	}
 	world.Enum = {
@@ -180,20 +184,39 @@ function Mock.newWorld()
 		dataOf(self)
 		return fullName(self)
 	end
+	--[[ Like Roblox: GetService CREATES a known service that does not exist yet. ]]
 	function methods.GetService(self, name)
 		local data = dataOf(self)
 		if data.className ~= "DataModel" then
 			error("GetService is not a valid member of " .. data.className, 2)
 		end
+		world.getServiceCalls = world.getServiceCalls + 1
 		world.servicesRequested[name] = true
 		if world.faults.getServiceFails ~= nil and world.faults.getServiceFails(name) then
 			error("mock fault: GetService " .. name, 0)
 		end
 		local service = world.services[name]
 		if service == nil then
-			error("'" .. tostring(name) .. "' is not a valid Service name", 2)
+			if CHAINS[name] == nil then
+				error("'" .. tostring(name) .. "' is not a valid Service name", 2)
+			end
+			service = world.makeService(name)
+			world.servicesCreated[#world.servicesCreated + 1] = name
 		end
 		return service
+	end
+	--[[ Like Roblox: FindService returns nil for a service that does not exist, and creates nothing. ]]
+	function methods.FindService(self, name)
+		local data = dataOf(self)
+		if data.className ~= "DataModel" then
+			error("FindService is not a valid member of " .. data.className, 2)
+		end
+		world.findServiceCalls = world.findServiceCalls + 1
+		world.servicesRequested[name] = true
+		if world.faults.getServiceFails ~= nil and world.faults.getServiceFails(name) then
+			error("mock fault: FindService " .. name, 0)
+		end
+		return world.services[name]
 	end
 	function methods.IsStudio(self)
 		return world.runServiceCall(self, "IsStudio")
@@ -229,6 +252,7 @@ function Mock.newWorld()
 		RunContext = "Script",
 		CharacterAutoLoads = "Players",
 		PlaceId = "DataModel",
+		GameId = "DataModel",
 	}
 
 	InstanceMeta.__index = function(proxy, key)
@@ -251,6 +275,8 @@ function Mock.newWorld()
 					error("mock fault: PlaceId", 0)
 				end
 				return world.placeId
+			elseif key == "GameId" then
+				return world.gameId
 			end
 			if world.faults.onGet ~= nil then
 				local replaced, value = world.faults.onGet(proxy, data, key)
@@ -296,7 +322,7 @@ function Mock.newWorld()
 			error("ClassName is read-only", 2)
 		end
 		local owner = PROPERTY_OWNERS[key]
-		if owner == nil or key == "PlaceId" or not isA(data.className, owner) then
+		if owner == nil or key == "PlaceId" or key == "GameId" or not isA(data.className, owner) then
 			error(tostring(key) .. " is not a valid member of " .. data.className, 2)
 		end
 		if key == "Source" then
@@ -339,8 +365,21 @@ function Mock.newWorld()
 
 	world.game = make("DataModel", "Game", nil, false)
 	world.services = {}
+	function world.makeService(name)
+		local service = make(name, name, world.game, false)
+		world.services[name] = service
+		return service
+	end
 	for _, name in ipairs(SERVICES) do
-		world.services[name] = make(name, name, world.game, false)
+		world.makeService(name)
+	end
+
+	--[[ For tests: make a service absent, as if this place had never created it. ]]
+	function world.removeService(name)
+		local service = world.services[name]
+		detach(service)
+		world.data[service].destroyed = true
+		world.services[name] = nil
 	end
 	local workspace = world.services.Workspace
 	make("Camera", "Camera", workspace, false)
@@ -423,7 +462,8 @@ function Mock.newWorld()
 			end
 		end
 		visit(world.game, 0)
-		lines[#lines + 1] = "CharacterAutoLoads=" .. tostring(world.data[world.services.Players].props.CharacterAutoLoads)
+		local players = world.services.Players
+		lines[#lines + 1] = "CharacterAutoLoads=" .. (players and tostring(world.data[players].props.CharacterAutoLoads) or "no Players service")
 		return table.concat(lines, "\n")
 	end
 

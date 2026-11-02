@@ -96,14 +96,16 @@ local function splitPath(path)
 	return string.match(path, "^(.*)/([^/]+)$")
 end
 
-local function safeGetService(serviceName)
+--[[ Looks a service up WITHOUT creating it (GetService would create a missing service).
+     Returns false when the lookup itself fails, otherwise true and the service or nil. ]]
+local function findService(serviceName)
 	local ok, service = pcall(function()
-		return game:GetService(serviceName)
+		return game:FindService(serviceName)
 	end)
 	if ok then
-		return service
+		return true, service
 	end
-	return nil
+	return false, nil
 end
 
 local function safeChild(parent, childName)
@@ -131,7 +133,11 @@ local function resolvePath(path)
 	local node = nil
 	for segment in string.gmatch(path, "[^/]+") do
 		if node == nil then
-			node = safeGetService(segment)
+			local ok, service = findService(segment)
+			if not ok then
+				return nil
+			end
+			node = service
 		else
 			local ok, child = safeChild(node, segment)
 			if not ok then
@@ -207,7 +213,7 @@ end
 --[[ ---------------------------------------------------------------------- ]]
 
 local function checkStudioMode(problems)
-	local RunService = safeGetService("RunService")
+	local _, RunService = findService("RunService")
 	if RunService == nil then
 		problems[#problems + 1] = "Could not reach RunService, so the installer cannot tell whether Studio is in Edit mode. Nothing will be changed."
 		return "unknown"
@@ -244,12 +250,16 @@ local function checkLocalPlace(problems)
 	local ok, placeId = pcall(function()
 		return game.PlaceId
 	end)
+	local okGame, gameId = pcall(function()
+		return game.GameId
+	end)
+	say("Place identity: PlaceId " .. (ok and tostring(placeId) or "unreadable") .. ", GameId " .. (okGame and tostring(gameId) or "unreadable") .. ".")
 	if not ok or type(placeId) ~= "number" then
 		problems[#problems + 1] = "Could not read the place's PlaceId, so the installer cannot confirm this is a local Baseplate."
 		return
 	end
 	if placeId ~= 0 then
-		problems[#problems + 1] = "This place is published to Roblox (PlaceId " .. tostring(placeId) .. "). Use a NEW Baseplate that is only saved to a file on your computer."
+		problems[#problems + 1] = "This place reports PlaceId " .. tostring(placeId) .. ", which normally means it is published to Roblox, so the installer refuses it. If this is a NEW Baseplate that you only saved to a file, do not try to work around this: copy this Output and report it (INSTALL_INSTRUCTIONS.md, section 9)."
 	else
 		say("Place: not published to Roblox (PlaceId 0).")
 	end
@@ -277,7 +287,8 @@ local function reservedNames()
 	return reserved
 end
 
---[[ Returns the container instances by path, or nil when the place cannot be used. ]]
+--[[ Returns the container instances by path, the Players service and CharacterAutoLoads.
+     A missing scan-only service holds no scripts and is skipped; nothing is ever created. ]]
 local function checkDestinations(problems, conflicts)
 	local containers = {}
 	for _, containerPath in ipairs(CONTAINER_PATHS) do
@@ -313,10 +324,10 @@ local function checkDestinations(problems, conflicts)
 		end
 	end
 	for _, serviceName in ipairs(SCAN_SERVICES) do
-		local service = safeGetService(serviceName)
-		if service == nil then
+		local found, service = findService(serviceName)
+		if not found then
 			problems[#problems + 1] = "Could not inspect " .. serviceName .. "."
-		else
+		elseif service ~= nil then
 			local ok, descendants = pcall(function()
 				return service:GetDescendants()
 			end)
@@ -336,17 +347,19 @@ local function checkDestinations(problems, conflicts)
 			end
 		end
 	end
-	local Players = safeGetService("Players")
+	local _, Players = findService("Players")
 	local okAutoLoads, autoLoads = false, nil
-	if Players ~= nil then
+	if Players == nil then
+		problems[#problems + 1] = "The Players service was not found. Start again from a new Baseplate."
+	else
 		okAutoLoads, autoLoads = pcall(function()
 			return Players.CharacterAutoLoads
 		end)
+		if not okAutoLoads or type(autoLoads) ~= "boolean" then
+			problems[#problems + 1] = "Could not read Players.CharacterAutoLoads."
+		end
 	end
-	if not okAutoLoads or type(autoLoads) ~= "boolean" then
-		problems[#problems + 1] = "Could not read Players.CharacterAutoLoads."
-	end
-	return containers, autoLoads
+	return containers, Players, autoLoads
 end
 
 --[[ ---------------------------------------------------------------------- ]]
@@ -406,31 +419,10 @@ end
 --[[ Installation with rollback                                               ]]
 --[[ ---------------------------------------------------------------------- ]]
 
---[[ Removes ONLY objects created by this run and restores the one setting it changed. ]]
-local function rollback(built, autoLoadsChanged, originalAutoLoads)
+--[[ Removes ONLY objects created by this run, then restores the one setting it changed.
+     Objects come first so that a problem with the setting can never stop the cleanup. ]]
+local function rollback(built, players, autoLoadsChanged, originalAutoLoads)
 	local leftovers = 0
-	if autoLoadsChanged then
-		local Players = safeGetService("Players")
-		local okRead, current = false, nil
-		if Players ~= nil then
-			okRead, current = pcall(function()
-				return Players.CharacterAutoLoads
-			end)
-		end
-		if okRead and current == originalAutoLoads then
-			say("Rollback: Players.CharacterAutoLoads is still " .. tostring(originalAutoLoads) .. ".")
-		else
-			local restored = Players ~= nil and pcall(function()
-				Players.CharacterAutoLoads = originalAutoLoads
-			end)
-			if restored and Players.CharacterAutoLoads == originalAutoLoads then
-				say("Rollback: Players.CharacterAutoLoads restored to " .. tostring(originalAutoLoads) .. ".")
-			else
-				alert("Rollback: could not restore Players.CharacterAutoLoads to " .. tostring(originalAutoLoads) .. ". Set it by hand in Properties.")
-				leftovers = leftovers + 1
-			end
-		end
-	end
 	for index = #built, 1, -1 do
 		local instance = built[index]
 		pcall(function()
@@ -446,6 +438,27 @@ local function rollback(built, autoLoadsChanged, originalAutoLoads)
 			alert("Rollback: could not remove " .. describe(instance) .. ".")
 		end
 	end
+	if autoLoadsChanged then
+		local okRead, current = pcall(function()
+			return players.CharacterAutoLoads
+		end)
+		if okRead and current == originalAutoLoads then
+			say("Rollback: Players.CharacterAutoLoads is still " .. tostring(originalAutoLoads) .. ".")
+		else
+			local okWrite = pcall(function()
+				players.CharacterAutoLoads = originalAutoLoads
+			end)
+			local okCheck, now = pcall(function()
+				return players.CharacterAutoLoads
+			end)
+			if okWrite and okCheck and now == originalAutoLoads then
+				say("Rollback: Players.CharacterAutoLoads restored to " .. tostring(originalAutoLoads) .. ".")
+			else
+				leftovers = leftovers + 1
+				alert("Rollback: could not restore or confirm Players.CharacterAutoLoads = " .. tostring(originalAutoLoads) .. ". Check it in Properties.")
+			end
+		end
+	end
 	if leftovers == 0 then
 		say("ROLLBACK COMPLETE: removed the " .. tostring(#built) .. " objects created by this run. Objects that existed before were not touched.")
 	else
@@ -454,7 +467,7 @@ local function rollback(built, autoLoadsChanged, originalAutoLoads)
 	alert("Close this place WITHOUT saving, then start again from a new Baseplate.")
 end
 
-local function install(sources, containers, originalAutoLoads)
+local function install(sources, containers, players, originalAutoLoads)
 	local built = {}
 	local autoLoadsChanged = false
 
@@ -525,12 +538,11 @@ local function install(sources, containers, originalAutoLoads)
 		end
 
 		--[[ Phase 3: the one setting. ]]
-		local Players = game:GetService("Players")
 		if originalAutoLoads ~= false then
 			autoLoadsChanged = true
-			Players.CharacterAutoLoads = false
+			players.CharacterAutoLoads = false
 		end
-		if Players.CharacterAutoLoads ~= false then
+		if players.CharacterAutoLoads ~= false then
 			error("Players.CharacterAutoLoads could not be set to false", 0)
 		end
 
@@ -540,7 +552,11 @@ local function install(sources, containers, originalAutoLoads)
 
 	if not ok then
 		alert("INSTALLATION FAILED: " .. tostring(failure))
-		rollback(built, autoLoadsChanged, originalAutoLoads)
+		local rolledBack, rollbackError = pcall(rollback, built, players, autoLoadsChanged, originalAutoLoads)
+		if not rolledBack then
+			alert("ROLLBACK INCOMPLETE: the rollback stopped with an unexpected error: " .. tostring(rollbackError))
+			alert("Close this place WITHOUT saving, then start again from a new Baseplate.")
+		end
 		return false
 	end
 	local counts = failure
@@ -579,7 +595,7 @@ local function run()
 	local studioMode = checkStudioMode(problems)
 	say("Studio mode: " .. studioMode)
 	checkLocalPlace(problems)
-	local containers, originalAutoLoads = checkDestinations(problems, conflicts)
+	local containers, players, originalAutoLoads = checkDestinations(problems, conflicts)
 
 	if #conflicts == 0 then
 		say("Existing objects: no conflicts.")
@@ -617,7 +633,7 @@ local function run()
 		say("CHECK COMPLETE. Nothing was changed. To install: set ENABLE_INSTALLATION = true near the top of the file, then copy and paste the whole file into the Command Bar again.")
 		return
 	end
-	install(sources, containers, originalAutoLoads)
+	install(sources, containers, players, originalAutoLoads)
 end
 
 local ranOk, unexpected = pcall(run)

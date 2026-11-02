@@ -41,7 +41,7 @@ FORBIDDEN = [
     "HttpService", "DataStore", "MemoryStore", "MessagingService", "MarketplaceService", "TeleportService",
     "Publish", "SavePlace", "InsertService", "AssetService", "PluginManager", "plugin", "loadstring",
     "require", "getfenv", "setfenv", "task.wait", "wait(", "spawn(", "delay(", "RunService:Run", "Simulation",
-    ":ClearAllChildren", "ChangeHistoryService", "Selection", "game:Shutdown",
+    ":ClearAllChildren", "ChangeHistoryService", "Selection", "game:Shutdown", "GetService",
 ]
 
 results: list[tuple[bool, str]] = []
@@ -112,9 +112,10 @@ def main() -> int:
     template = gen.TEMPLATE_PATH.read_text(encoding="ascii")
     code = re.sub(r"--\[\[.*?\]\]", "", template, flags=re.S)
     hits = [token for token in FORBIDDEN if token in code]
-    record(not hits, "installer logic uses no HTTP, DataStore, publish, require, loadstring, yields or other unrelated APIs", ", ".join(hits))
-    calls = sorted(set(re.findall(r"GetService\(\"(\w+)\"\)", code)))
-    record(calls == ["Players", "RunService"], f"services named directly in the logic: {calls} (others come from the fixed Appendix B scan list)")
+    record(not hits, "installer logic uses no GetService (it creates missing services), HTTP, DataStore, publish, require, loadstring, yields or other unrelated APIs", ", ".join(hits))
+    calls = sorted(set(re.findall(r"findService\(\"(\w+)\"\)", code)))
+    record(code.count("game:FindService(") == 1 and calls == ["Players", "RunService"],
+           f"every service lookup goes through one non-creating game:FindService helper (named directly: {calls})")
     record("Destroy()" in code and code.count(":Destroy()") == 1 and "built[index]" in code,
            "the only Destroy() call removes objects from this run's own 'built' list")
     try:
@@ -141,9 +142,12 @@ def main() -> int:
             print(run.stdout.rstrip())
             if run.stderr:
                 print(run.stderr.rstrip())
-            summary = re.search(r"\[installer tests\] (\d+) passed, (\d+) failed", run.stdout)
-            record(run.returncode == 0 and summary is not None and summary.group(2) == "0",
-                   f"Lua behaviour tests against the fake engine: {summary.group(0) if summary else 'no summary'}")
+            summary = re.search(r"\[installer tests\] (\d+) passed, (\d+) failed, (\d+) declared", run.stdout)
+            counts_ok = (summary is not None and int(summary.group(1)) > 0 and summary.group(2) == "0"
+                         and summary.group(1) == summary.group(3))
+            record(run.returncode == 0 and counts_ok,
+                   f"Lua behaviour tests against the fake engine: {summary.group(0) if summary else 'no summary'} "
+                   "(every declared test must run and pass)")
             if dump.exists():
                 replicate_appendix_b(dump.read_text())
             else:

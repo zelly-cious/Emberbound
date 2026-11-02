@@ -66,7 +66,11 @@ local function checkPrefixes(world)
 		check(line.kind ~= "uncaught", "uncaught error: " .. line.text)
 		check(string.sub(line.text, 1, 15) == "[M2 Installer] ", "output line without the prefix: " .. line.text)
 		check(string.find(line.text, "[Parity]", 1, true) == nil, "installer printed a [Parity] line")
+		check(string.find(line.text, "unexpected error", 1, true) == nil, "the installer stopped with an unexpected error: " .. line.text)
 	end
+	--[[ M2-I02: GetService creates missing services, so the installer must never call it. ]]
+	check(world.getServiceCalls == 0, "the installer called GetService " .. tostring(world.getServiceCalls) .. " times")
+	check(#world.servicesCreated == 0, "a service was created: " .. table.concat(world.servicesCreated, ", "))
 end
 
 --[[ A Baseplate plus two unrelated objects that must survive everything. ]]
@@ -132,7 +136,7 @@ local function checkInstalled(world, autoLoadsNote)
 		local remote = remotes:FindFirstChild(name)
 		check(remote ~= nil and remote.ClassName == "RemoteEvent", name .. " is not a RemoteEvent")
 	end
-	check(#world.services.StarterGui:GetChildren() == 0, "something was created in StarterGui")
+	check(world.services.StarterGui == nil or #world.services.StarterGui:GetChildren() == 0, "something was created in StarterGui")
 	check(#world.services.StarterPlayer:FindFirstChild("StarterCharacterScripts"):GetChildren() == 0, "something was created in StarterCharacterScripts")
 	check(world.services.Players.CharacterAutoLoads == false, "CharacterAutoLoads is not false")
 	check(world.newCount == 33, "expected 33 created objects, got " .. tostring(world.newCount))
@@ -298,7 +302,8 @@ local modes = {
 	{ "IsStudio raises an error", function(w) w.mode.errors.IsStudio = true end, "Could not determine whether Studio is in Edit mode" },
 	{ "IsEdit returns a non-boolean", function(w) w.mode.values.IsEdit = "yes" end, "Could not determine whether Studio is in Edit mode" },
 	{ "RunService unavailable", function(w) w.faults.getServiceFails = function(name) return name == "RunService" end end, "Could not reach RunService" },
-	{ "published place", function(w) w.placeId = 123456789 end, "This place is published to Roblox" },
+	{ "published place (non-zero PlaceId)", function(w) w.placeId = 123456789; w.gameId = 987654321 end, "Place identity: PlaceId 123456789, GameId 987654321" },
+	{ "published place is refused with a report request", function(w) w.placeId = 123456789 end, "which normally means it is published to Roblox, so the installer refuses it" },
 	{ "PlaceId unreadable", function(w) w.placeIdError = true end, "Could not read the place's PlaceId" },
 	{ "StarterPlayerScripts missing", function(w) w.services.StarterPlayer:FindFirstChild("StarterPlayerScripts"):Destroy() end, "StarterPlayer.StarterPlayerScripts was not found" },
 }
@@ -310,6 +315,43 @@ for _, case in ipairs(modes) do
 		runText(world, INSTALL)
 		check(has(world, case[3]), "expected message: " .. case[3])
 		checkRefused(world, before)
+	end)
+end
+
+--[[ ---------------- missing services (M2-I02) ---------------- ]]
+
+for _, serviceName in ipairs({ "SoundService", "Lighting", "StarterPack", "StarterGui", "ServerStorage", "ReplicatedFirst" }) do
+	test("a missing scan-only service is skipped and never created: " .. serviceName, function()
+		local world = freshWorld()
+		world.removeService(serviceName)
+		local before = world.snapshot()
+		runText(world, INSTALLER)
+		check(has(world, "Ready to install: YES"), "check mode did not report ready")
+		checkUntouched(world, before)
+		local installWorld = freshWorld()
+		installWorld.removeService(serviceName)
+		runText(installWorld, INSTALL)
+		checkInstalled(installWorld, "changed from true by this run")
+		check(installWorld.services[serviceName] == nil, serviceName .. " was created by the installation")
+	end)
+end
+
+local requiredServices = {
+	{ "RunService", "Could not reach RunService" },
+	{ "Players", "The Players service was not found" },
+	{ "ReplicatedStorage", "ReplicatedStorage was not found" },
+	{ "ServerScriptService", "ServerScriptService was not found" },
+	{ "StarterPlayer", "StarterPlayer.StarterPlayerScripts was not found" },
+}
+for _, case in ipairs(requiredServices) do
+	test("a missing required service is refused and never created: " .. case[1], function()
+		local world = freshWorld()
+		world.removeService(case[1])
+		local before = world.snapshot()
+		runText(world, INSTALL)
+		check(has(world, case[2]), "expected message: " .. case[2])
+		checkRefused(world, before)
+		check(world.services[case[1]] == nil, case[1] .. " was created")
 	end)
 end
 
@@ -440,6 +482,62 @@ for _, case in ipairs(faults) do
 	end)
 end
 
+--[[ M2-I01: a failing CharacterAutoLoads read or write during rollback must not stop the cleanup. ]]
+local function failVerificationAfterCommit(w, onBigNumRead)
+	return function(proxy, data, key)
+		if key == "Source" and data.name == "BigNum" and w.inPlace(proxy) then
+			if onBigNumRead then
+				onBigNumRead()
+			end
+			return true, "--!strict\nreturn {}\n"
+		end
+		if key == "CharacterAutoLoads" and w.breakAutoLoadsRead then
+			error("mock fault: reading CharacterAutoLoads", 0)
+		end
+		return false
+	end
+end
+
+local rollbackSettingFaults = {
+	{ "the CharacterAutoLoads read fails after the restore write", function(w)
+		w.faults.onGet = failVerificationAfterCommit(w, nil)
+		w.faults.onSet = function(_, _, key, value)
+			if key == "CharacterAutoLoads" and value == true then
+				w.breakAutoLoadsRead = true
+			end
+		end
+	end, true },
+	{ "every CharacterAutoLoads read fails during rollback", function(w)
+		w.faults.onGet = failVerificationAfterCommit(w, function()
+			w.breakAutoLoadsRead = true
+		end)
+	end, true },
+	{ "the CharacterAutoLoads restore write fails", function(w)
+		w.faults.onGet = failVerificationAfterCommit(w, nil)
+		w.faults.onSet = function(_, _, key, value)
+			if key == "CharacterAutoLoads" and value == true then
+				error("mock fault: writing CharacterAutoLoads", 0)
+			end
+		end
+	end, false },
+}
+for _, case in ipairs(rollbackSettingFaults) do
+	test("rollback still removes every created object when " .. case[1], function()
+		local world = freshWorld()
+		case[2](world)
+		local before = world.snapshot()
+		runText(world, INSTALL)
+		check(has(world, "the installed text differs"), "the verification failure did not trigger")
+		checkRolledBack(world, before, false)
+		check(has(world, "could not restore or confirm Players.CharacterAutoLoads"), "the setting problem was not reported")
+		check(world.created ~= nil and #world.created == 33, "expected 33 created objects")
+		for _, instance in ipairs(world.created) do
+			check(instance.Parent == nil, "a created object is still in the place")
+		end
+		check(world.dataOf(world.services.Players).props.CharacterAutoLoads == case[3], "unexpected final CharacterAutoLoads")
+	end)
+end
+
 test("rollback that cannot remove an object says so (documented limitation)", function()
 	local world = freshWorld()
 	local target = world.services.StarterPlayer:FindFirstChild("StarterPlayerScripts")
@@ -471,5 +569,5 @@ for _, case in ipairs(tests) do
 		print("FAIL " .. case.name .. ": " .. tostring(problem))
 	end
 end
-print(string.format("[installer tests] %d passed, %d failed", passed, failed))
+print(string.format("[installer tests] %d passed, %d failed, %d declared", passed, failed, #tests))
 os.exit(failed == 0 and 0 or 1)
