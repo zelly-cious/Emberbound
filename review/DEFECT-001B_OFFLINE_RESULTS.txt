@@ -1,0 +1,221 @@
+DEFECT-001B offline results (review tooling, NOT Roblox Studio).
+Source: the work tree of the commit that adds this file (parent 8626bc70ff905975fbc8069b4f951762f15cdefd).
+Host: Linux x86-64, lua5.1 + glibc; Luau translated by review/ftz-harness/luau51.py. Modes: see review/ftz-harness/run_matrix.py.
+Each '[Mode]' line is the self-check printed by that run: tiny*1 (FTZ), %.17g of 5e-324 (formatter model), tostring, tonumber.
+
+## 1. Candidate (work tree): all unit tests and review probes
+[gradual   ] tiny*1=4.9406564584124654e-324 format(%.17g,tiny)=4.9406564584124654e-324 tostring(tiny)=5e-324 tonumber(5e-324)>0=true
+[gradual   ] unit   exit=0 ALL PASSED (67 tests)
+[gradual   ] probes exit=0 75 passed, 0 failed
+[ftz       ] tiny*1=0 format(%.17g,tiny)=4.9406564584124654e-324 tostring(tiny)=5e-324 tonumber(5e-324)>0=true
+[ftz       ] unit   exit=0 ALL PASSED (67 tests)
+[ftz       ] probes exit=0 75 passed, 0 failed
+[ftz-winfmt] tiny*1=0 format(%.17g,tiny)=0 tostring(tiny)=5e-324 tonumber(5e-324)>0=true
+[ftz-winfmt] unit   exit=0 ALL PASSED (67 tests)
+[ftz-winfmt] probes exit=0 75 passed, 0 failed
+[winfmt    ] tiny*1=4.9406564584124654e-324 format(%.17g,tiny)=0 tostring(tiny)=5e-324 tonumber(5e-324)>0=true
+[winfmt    ] unit   exit=0 ALL PASSED (67 tests)
+[winfmt    ] probes exit=0 75 passed, 0 failed
+
+## 2. Baseline: frozen e9d878d with its own 61 tests
+[gradual   ] tiny*1=4.9406564584124654e-324 format(%.17g,tiny)=4.9406564584124654e-324 tostring(tiny)=5e-324 tonumber(5e-324)>0=true
+[gradual   ] unit   exit=0 ALL PASSED (61 tests)
+[gradual   ] probes exit=0 75 passed, 0 failed
+[ftz       ] tiny*1=0 format(%.17g,tiny)=4.9406564584124654e-324 tostring(tiny)=5e-324 tonumber(5e-324)>0=true
+[ftz       ] unit   exit=1 1 FAILED, 60 passed
+      FAIL BigNumTests > the smallest positive doubles work in arithmetic: ServerScriptService/Tests/BigNumTests.luau:364: dividing back gives 5e-324, not zero: condition was false
+[ftz       ] probes exit=1 74 passed, 1 failed
+      FAIL 5e-324 * 1e400 divided by 1e400 is 5e-324 again
+[ftz-winfmt] tiny*1=0 format(%.17g,tiny)=0 tostring(tiny)=5e-324 tonumber(5e-324)>0=true
+[ftz-winfmt] unit   exit=1 1 FAILED, 60 passed
+      FAIL BigNumTests > the smallest positive doubles work in arithmetic: ServerScriptService/Tests/BigNumTests.luau:364: dividing back gives 5e-324, not zero: condition was false
+[ftz-winfmt] probes exit=1 73 passed, 2 failed
+      FAIL every result is a valid BigNum and every value round-trips through text -- 2
+      FAIL 5e-324 * 1e400 divided by 1e400 is 5e-324 again
+[winfmt    ] tiny*1=4.9406564584124654e-324 format(%.17g,tiny)=0 tostring(tiny)=5e-324 tonumber(5e-324)>0=true
+[winfmt    ] unit   exit=1 1 FAILED, 60 passed
+      FAIL BigNumTests > the smallest positive doubles work in arithmetic: ServerScriptService/Tests/BigNumTests.luau:374: 5e-324 round-trips through text: condition was false
+[winfmt    ] probes exit=1 74 passed, 1 failed
+      FAIL every result is a valid BigNum and every value round-trips through text -- 2
+
+## 3. Baseline: prior candidate 8626bc7 with its own 63 tests
+[gradual   ] tiny*1=4.9406564584124654e-324 format(%.17g,tiny)=4.9406564584124654e-324 tostring(tiny)=5e-324 tonumber(5e-324)>0=true
+[gradual   ] unit   exit=0 ALL PASSED (63 tests)
+[gradual   ] probes exit=0 75 passed, 0 failed
+[ftz       ] tiny*1=0 format(%.17g,tiny)=4.9406564584124654e-324 tostring(tiny)=5e-324 tonumber(5e-324)>0=true
+[ftz       ] unit   exit=0 ALL PASSED (63 tests)
+[ftz       ] probes exit=0 75 passed, 0 failed
+[ftz-winfmt] tiny*1=0 format(%.17g,tiny)=0 tostring(tiny)=5e-324 tonumber(5e-324)>0=true
+[ftz-winfmt] unit   exit=1 1 FAILED, 62 passed
+      FAIL BigNumTests > the smallest positive doubles work in arithmetic: ServerScriptService/Tests/BigNumTests.luau:374: 5e-324 round-trips through text: condition was false
+[ftz-winfmt] probes exit=1 74 passed, 1 failed
+      FAIL every result is a valid BigNum and every value round-trips through text -- 2
+[winfmt    ] tiny*1=4.9406564584124654e-324 format(%.17g,tiny)=0 tostring(tiny)=5e-324 tonumber(5e-324)>0=true
+[winfmt    ] unit   exit=1 1 FAILED, 62 passed
+      FAIL BigNumTests > the smallest positive doubles work in arithmetic: ServerScriptService/Tests/BigNumTests.luau:374: 5e-324 round-trips through text: condition was false
+[winfmt    ] probes exit=1 74 passed, 1 failed
+      FAIL every result is a valid BigNum and every value round-trips through text -- 2
+
+## 4. Negative control: candidate tests + prior candidate BigNum (8626bc7)
+[gradual   ] tiny*1=4.9406564584124654e-324 format(%.17g,tiny)=4.9406564584124654e-324 tostring(tiny)=5e-324 tonumber(5e-324)>0=true
+[gradual   ] unit   exit=0 ALL PASSED (67 tests)
+[ftz       ] tiny*1=0 format(%.17g,tiny)=4.9406564584124654e-324 tostring(tiny)=5e-324 tonumber(5e-324)>0=true
+[ftz       ] unit   exit=0 ALL PASSED (67 tests)
+[ftz-winfmt] tiny*1=0 format(%.17g,tiny)=0 tostring(tiny)=5e-324 tonumber(5e-324)>0=true
+[ftz-winfmt] unit   exit=1 2 FAILED, 65 passed
+      FAIL BigNumTests > the smallest positive doubles work in arithmetic: ServerScriptService/Tests/BigNumTests.luau:374: 5e-324 round-trips through text: condition was false
+      FAIL BigNumTests > canonical text round-trips exactly for subnormal, boundary, ordinary and large values: ServerScriptService/Tests/BigNumTests.luau:534: smallest positive double (bits 0x1): parse(toString(x)) equals x (text "0"): condition was false
+[winfmt    ] tiny*1=4.9406564584124654e-324 format(%.17g,tiny)=0 tostring(tiny)=5e-324 tonumber(5e-324)>0=true
+[winfmt    ] unit   exit=1 2 FAILED, 65 passed
+      FAIL BigNumTests > the smallest positive doubles work in arithmetic: ServerScriptService/Tests/BigNumTests.luau:374: 5e-324 round-trips through text: condition was false
+      FAIL BigNumTests > canonical text round-trips exactly for subnormal, boundary, ordinary and large values: ServerScriptService/Tests/BigNumTests.luau:534: smallest positive double (bits 0x1): parse(toString(x)) equals x (text "0"): condition was false
+
+## 5. Negative control: candidate tests + frozen BigNum (e9d878d)
+[gradual   ] tiny*1=4.9406564584124654e-324 format(%.17g,tiny)=4.9406564584124654e-324 tostring(tiny)=5e-324 tonumber(5e-324)>0=true
+[gradual   ] unit   exit=0 ALL PASSED (67 tests)
+[ftz       ] tiny*1=0 format(%.17g,tiny)=4.9406564584124654e-324 tostring(tiny)=5e-324 tonumber(5e-324)>0=true
+[ftz       ] unit   exit=1 3 FAILED, 64 passed
+      FAIL BigNumTests > the smallest positive doubles work in arithmetic: ServerScriptService/Tests/BigNumTests.luau:364: dividing back gives 5e-324, not zero: condition was false
+      FAIL BigNumTests > subnormal results rebuilt from scientific form are not flushed to zero: ServerScriptService/Tests/BigNumTests.luau:471: 5e-30 / 1e294 is a positive BigNum: condition was false
+      FAIL BigNumTests > the normal boundary and genuine underflow are unchanged: ServerScriptService/Tests/BigNumTests.luau:485: largest subnormal stays within one step: condition was false
+[ftz-winfmt] tiny*1=0 format(%.17g,tiny)=0 tostring(tiny)=5e-324 tonumber(5e-324)>0=true
+[ftz-winfmt] unit   exit=1 4 FAILED, 63 passed
+      FAIL BigNumTests > the smallest positive doubles work in arithmetic: ServerScriptService/Tests/BigNumTests.luau:364: dividing back gives 5e-324, not zero: condition was false
+      FAIL BigNumTests > subnormal results rebuilt from scientific form are not flushed to zero: ServerScriptService/Tests/BigNumTests.luau:471: 5e-30 / 1e294 is a positive BigNum: condition was false
+      FAIL BigNumTests > the normal boundary and genuine underflow are unchanged: ServerScriptService/Tests/BigNumTests.luau:485: largest subnormal stays within one step: condition was false
+      FAIL BigNumTests > canonical text round-trips exactly for subnormal, boundary, ordinary and large values: ServerScriptService/Tests/BigNumTests.luau:534: smallest positive double (bits 0x1): parse(toString(x)) equals x (text "0"): condition was false
+[winfmt    ] tiny*1=4.9406564584124654e-324 format(%.17g,tiny)=0 tostring(tiny)=5e-324 tonumber(5e-324)>0=true
+[winfmt    ] unit   exit=1 2 FAILED, 65 passed
+      FAIL BigNumTests > the smallest positive doubles work in arithmetic: ServerScriptService/Tests/BigNumTests.luau:374: 5e-324 round-trips through text: condition was false
+      FAIL BigNumTests > canonical text round-trips exactly for subnormal, boundary, ordinary and large values: ServerScriptService/Tests/BigNumTests.luau:534: smallest positive double (bits 0x1): parse(toString(x)) equals x (text "0"): condition was false
+
+## 6. Differential: frozen vs prior vs candidate, 24,000 operations per mode
+[gradual   ] 24000 operations; differences by class:
+        254  prior->candidate: subnormal text now Luau tostring (DEFECT-001B)
+          0  other differences (must be 0)
+      candidate parse(toString(x)) == x and idempotent text: 0 failures (must be 0)
+[ftz       ] 24000 operations; differences by class:
+          4  frozen->prior: arithmetic 0 -> subnormal (DEFECT-001)
+        254  prior->candidate: subnormal text now Luau tostring (DEFECT-001B)
+          0  other differences (must be 0)
+      candidate parse(toString(x)) == x and idempotent text: 0 failures (must be 0)
+[ftz-winfmt] 24000 operations; differences by class:
+          4  frozen->prior: arithmetic 0 -> subnormal (DEFECT-001)
+        255  prior->candidate: parse(toString(x)) 0 -> x (DEFECT-001B)
+        255  prior->candidate: subnormal text now Luau tostring (DEFECT-001B)
+          0  other differences (must be 0)
+      candidate parse(toString(x)) == x and idempotent text: 0 failures (must be 0)
+[winfmt    ] 24000 operations; differences by class:
+        255  prior->candidate: parse(toString(x)) 0 -> x (DEFECT-001B)
+        255  prior->candidate: subnormal text now Luau tostring (DEFECT-001B)
+          0  other differences (must be 0)
+      candidate parse(toString(x)) == x and idempotent text: 0 failures (must be 0)
+[candidate] results that still differ between gradual and ftz-winfmt (native fast paths):
+      add             55 (55 of them become zero under FTZ)
+      div             65 (65 of them become zero under FTZ)
+      fromLog10       37 (37 of them become zero under FTZ)
+      mul            133 (133 of them become zero under FTZ)
+      ratio           70 (70 of them become zero under FTZ)
+      scaledPower     10 (10 of them become zero under FTZ)
+      sub             29 (29 of them become zero under FTZ)
+      trySub          29 (29 of them become zero under FTZ)
+DIFFERENTIAL PASS
+
+## 7. Studio probe v2, offline, ftz-winfmt (closest model of the observed Studio Edit mode)
+===== ftz-winfmt (e9d878d94155610558c9c6252d76f202dfd956b4) =====
+[DEFECT-001 probe v2] engine Lua 5.1 roblox n/a context server-or-edit running false
+[DEFECT-001 probe v2] mode tiny>0 true tiny*1 0 minNormal/2 0 1e-300*1e-10 0
+[DEFECT-001 probe v2] mode verdict FLUSH-TO-ZERO (subnormal results become 0) | inputs subnormal inputs kept (no DAZ)
+[DEFECT-001 probe v2] formatter %.17g(tiny)=0 tostring(tiny)=5e-324 | verdict FORMATTER PRINTS SUBNORMALS AS 0
+[DEFECT-001 probe v2] tonumber 4.9406564584124659e-324 -> 5e-324 ==5e-324 true
+[DEFECT-001 probe v2] tonumber 4.9406564584124654e-324 -> 5e-324 ==5e-324 true
+[DEFECT-001 probe v2] tonumber 5e-324 -> 5e-324 ==5e-324 true
+[DEFECT-001 probe v2] tonumber 3e-324 -> 5e-324 ==5e-324 true
+[DEFECT-001 probe v2] tonumber 2e-324 -> 0 ==5e-324 false
+[DEFECT-001 probe v2] tonumber 1e-324 -> 0 ==5e-324 false
+[DEFECT-001 probe v2] tonumber 1e-320 -> 1e-320 ==5e-324 false
+[DEFECT-001 probe v2] tonumber 1e-310 -> 1e-310 ==5e-324 false
+[DEFECT-001 probe v2] tonumber 2.2250738585072009e-308 -> 2.225073858507201e-308 ==5e-324 false
+[DEFECT-001 probe v2] tonumber 2.2250738585072014e-308 -> 2.2250738585072014e-308 ==5e-324 false
+[DEFECT-001 probe v2] tonumber 1e-400 -> 0 ==5e-324 false
+[DEFECT-001 probe v2] candidate rebuild tonumber(string.format('%.17ge%d', 4.9406564584124659, -324)) -> 5e-324 ==5e-324 true
+[DEFECT-001 probe v2] arithmetic mantissa 4.940656458412466 m*10^-24 4.940656458412466e-24 *1e-300 0
+[DEFECT-001 probe v2] string.pack/unpack bit rebuild unavailable: <tmp>/probe.lua:804: attempt to call field 'pack' (a nil value)
+[DEFECT-001 probe v2] buffer bit rebuild available, bits 0x1 -> 5e-324 ==5e-324 true
+[DEFECT-001 probe v2] fields tiny m=5e-324 e=0 valid=true zero=false
+[DEFECT-001 probe v2] fields product m=4.940656458412466 e=76 valid=true zero=false
+[DEFECT-001 probe v2] fields quotient m=0 e=0 valid=true zero=true
+[DEFECT-001 probe v2] line 364 eq(div(product, 1e400), tiny) false
+[DEFECT-001 probe v2] line 365 log10(1/tiny) 323.3062153431158
+[DEFECT-001 probe v2] line 366-372 log10(minNormal*1e400) 92.34734443141122
+[DEFECT-001 probe v2] line 373 add(tiny,1e400) 1e400
+[DEFECT-001 probe v2] line 374 parse(toString(tiny)) == tiny "0" -> 0 eq=false
+[DEFECT-001 probe v2] line 375 lt(tiny, 1e-300) true
+[DEFECT-001 probe v2] fields fast add(tiny,tiny) m=0 e=0 valid=true zero=true
+[DEFECT-001 probe v2] fields fast mul(1e-200,1e-120) m=0 e=0 valid=true zero=true
+[DEFECT-001 probe v2] fields fast div(1e-300,1e10) m=0 e=0 valid=true zero=true
+[DEFECT-001 probe v2] fields fast sub(minNormal,2.2250738585072009e-308) m=0 e=0 valid=true zero=true
+[DEFECT-001 probe v2] fields fast fromLog10(-320) m=0 e=0 valid=true zero=true
+[DEFECT-001 probe v2] fields sci div(5e-30,1e294) m=0 e=0 valid=true zero=true
+[DEFECT-001 probe v2] fields sci div(1e-30,1e294) true underflow m=0 e=0 valid=true zero=true
+[DEFECT-001 probe v2] text bits 0x1 smallest %.17g="0" tostring="5e-324" tonumber(tostring)==x true | module "0" eq=false | candidate "5e-324" eq=true idempotent=true
+[DEFECT-001 probe v2] text bits 0x2 next %.17g="0" tostring="1e-323" tonumber(tostring)==x true | module "0" eq=false | candidate "1e-323" eq=true idempotent=true
+[DEFECT-001 probe v2] text bits 0x7E8 1e-320 %.17g="0" tostring="1e-320" tonumber(tostring)==x true | module "0" eq=false | candidate "1e-320" eq=true idempotent=true
+[DEFECT-001 probe v2] text bits 0x000012688B70E62B 1e-310 %.17g="0" tostring="1e-310" tonumber(tostring)==x true | module "0" eq=false | candidate "1e-310" eq=true idempotent=true
+[DEFECT-001 probe v2] text bits 0x000FFFFFFFFFFFFF largest subnormal %.17g="0" tostring="2.225073858507201e-308" tonumber(tostring)==x true | module "0" eq=false | candidate "2.225073858507201e-308" eq=true idempotent=true
+[DEFECT-001 probe v2] text bits 0x0010000000000000 smallest normal %.17g="2.2250738585072014e-308" tostring="2.2250738585072014e-308" tonumber(tostring)==x true | module "2.2250738585072014e-308" eq=true | candidate "2.2250738585072014e-308" eq=true idempotent=true
+[DEFECT-001 probe v2] text 1e-307 normal %.17g="9.9999999999999991e-308" tostring="1e-307" tonumber(tostring)==x true | module "9.9999999999999991e-308" eq=true | candidate "9.9999999999999991e-308" eq=true idempotent=true
+[DEFECT-001 probe v2] text 1e-300 normal %.17g="1e-300" tostring="1e-300" tonumber(tostring)==x true | module "1e-300" eq=true | candidate "1e-300" eq=true idempotent=true
+[DEFECT-001 probe v2] text 0.1 %.17g="0.10000000000000001" tostring="0.1" tonumber(tostring)==x true | module "0.10000000000000001" eq=true | candidate "0.10000000000000001" eq=true idempotent=true
+[DEFECT-001 probe v2] text 0 %.17g="0" tostring="0" tonumber(tostring)==x true | module "0" eq=true | candidate "0" eq=true idempotent=true
+[DEFECT-001 probe v2] done
+===== ftz-winfmt (worktree) =====
+[DEFECT-001 probe v2] engine Lua 5.1 roblox n/a context server-or-edit running false
+[DEFECT-001 probe v2] mode tiny>0 true tiny*1 0 minNormal/2 0 1e-300*1e-10 0
+[DEFECT-001 probe v2] mode verdict FLUSH-TO-ZERO (subnormal results become 0) | inputs subnormal inputs kept (no DAZ)
+[DEFECT-001 probe v2] formatter %.17g(tiny)=0 tostring(tiny)=5e-324 | verdict FORMATTER PRINTS SUBNORMALS AS 0
+[DEFECT-001 probe v2] tonumber 4.9406564584124659e-324 -> 5e-324 ==5e-324 true
+[DEFECT-001 probe v2] tonumber 4.9406564584124654e-324 -> 5e-324 ==5e-324 true
+[DEFECT-001 probe v2] tonumber 5e-324 -> 5e-324 ==5e-324 true
+[DEFECT-001 probe v2] tonumber 3e-324 -> 5e-324 ==5e-324 true
+[DEFECT-001 probe v2] tonumber 2e-324 -> 0 ==5e-324 false
+[DEFECT-001 probe v2] tonumber 1e-324 -> 0 ==5e-324 false
+[DEFECT-001 probe v2] tonumber 1e-320 -> 1e-320 ==5e-324 false
+[DEFECT-001 probe v2] tonumber 1e-310 -> 1e-310 ==5e-324 false
+[DEFECT-001 probe v2] tonumber 2.2250738585072009e-308 -> 2.225073858507201e-308 ==5e-324 false
+[DEFECT-001 probe v2] tonumber 2.2250738585072014e-308 -> 2.2250738585072014e-308 ==5e-324 false
+[DEFECT-001 probe v2] tonumber 1e-400 -> 0 ==5e-324 false
+[DEFECT-001 probe v2] candidate rebuild tonumber(string.format('%.17ge%d', 4.9406564584124659, -324)) -> 5e-324 ==5e-324 true
+[DEFECT-001 probe v2] arithmetic mantissa 4.940656458412466 m*10^-24 4.940656458412466e-24 *1e-300 0
+[DEFECT-001 probe v2] string.pack/unpack bit rebuild unavailable: <tmp>/probe.lua:828: attempt to call field 'pack' (a nil value)
+[DEFECT-001 probe v2] buffer bit rebuild available, bits 0x1 -> 5e-324 ==5e-324 true
+[DEFECT-001 probe v2] fields tiny m=5e-324 e=0 valid=true zero=false
+[DEFECT-001 probe v2] fields product m=4.940656458412466 e=76 valid=true zero=false
+[DEFECT-001 probe v2] fields quotient m=5e-324 e=0 valid=true zero=false
+[DEFECT-001 probe v2] line 364 eq(div(product, 1e400), tiny) true
+[DEFECT-001 probe v2] line 365 log10(1/tiny) 323.3062153431158
+[DEFECT-001 probe v2] line 366-372 log10(minNormal*1e400) 92.34734443141122
+[DEFECT-001 probe v2] line 373 add(tiny,1e400) 1e400
+[DEFECT-001 probe v2] line 374 parse(toString(tiny)) == tiny "5e-324" -> 5e-324 eq=true
+[DEFECT-001 probe v2] line 375 lt(tiny, 1e-300) true
+[DEFECT-001 probe v2] fields fast add(tiny,tiny) m=0 e=0 valid=true zero=true
+[DEFECT-001 probe v2] fields fast mul(1e-200,1e-120) m=0 e=0 valid=true zero=true
+[DEFECT-001 probe v2] fields fast div(1e-300,1e10) m=0 e=0 valid=true zero=true
+[DEFECT-001 probe v2] fields fast sub(minNormal,2.2250738585072009e-308) m=0 e=0 valid=true zero=true
+[DEFECT-001 probe v2] fields fast fromLog10(-320) m=0 e=0 valid=true zero=true
+[DEFECT-001 probe v2] fields sci div(5e-30,1e294) m=5e-324 e=0 valid=true zero=false
+[DEFECT-001 probe v2] fields sci div(1e-30,1e294) true underflow m=0 e=0 valid=true zero=true
+[DEFECT-001 probe v2] text bits 0x1 smallest %.17g="0" tostring="5e-324" tonumber(tostring)==x true | module "5e-324" eq=true | candidate "5e-324" eq=true idempotent=true
+[DEFECT-001 probe v2] text bits 0x2 next %.17g="0" tostring="1e-323" tonumber(tostring)==x true | module "1e-323" eq=true | candidate "1e-323" eq=true idempotent=true
+[DEFECT-001 probe v2] text bits 0x7E8 1e-320 %.17g="0" tostring="1e-320" tonumber(tostring)==x true | module "1e-320" eq=true | candidate "1e-320" eq=true idempotent=true
+[DEFECT-001 probe v2] text bits 0x000012688B70E62B 1e-310 %.17g="0" tostring="1e-310" tonumber(tostring)==x true | module "1e-310" eq=true | candidate "1e-310" eq=true idempotent=true
+[DEFECT-001 probe v2] text bits 0x000FFFFFFFFFFFFF largest subnormal %.17g="0" tostring="2.225073858507201e-308" tonumber(tostring)==x true | module "2.225073858507201e-308" eq=true | candidate "2.225073858507201e-308" eq=true idempotent=true
+[DEFECT-001 probe v2] text bits 0x0010000000000000 smallest normal %.17g="2.2250738585072014e-308" tostring="2.2250738585072014e-308" tonumber(tostring)==x true | module "2.2250738585072014e-308" eq=true | candidate "2.2250738585072014e-308" eq=true idempotent=true
+[DEFECT-001 probe v2] text 1e-307 normal %.17g="9.9999999999999991e-308" tostring="1e-307" tonumber(tostring)==x true | module "9.9999999999999991e-308" eq=true | candidate "9.9999999999999991e-308" eq=true idempotent=true
+[DEFECT-001 probe v2] text 1e-300 normal %.17g="1e-300" tostring="1e-300" tonumber(tostring)==x true | module "1e-300" eq=true | candidate "1e-300" eq=true idempotent=true
+[DEFECT-001 probe v2] text 0.1 %.17g="0.10000000000000001" tostring="0.1" tonumber(tostring)==x true | module "0.10000000000000001" eq=true | candidate "0.10000000000000001" eq=true idempotent=true
+[DEFECT-001 probe v2] text 0 %.17g="0" tostring="0" tonumber(tostring)==x true | module "0" eq=true | candidate "0" eq=true idempotent=true
+[DEFECT-001 probe v2] done
+
+## 8. Supplementary: FTZ + DAZ + formatter model (Studio reported no DAZ; shows the fixture test fails loudly)
+[ftz+DAZ+winfmt] 4 FAILED, 63 passed: lines 365 (division by zero), 471, 510 (fixture is not a positive subnormal), 527 (fixture BigNum is zero)

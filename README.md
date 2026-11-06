@@ -1,47 +1,39 @@
-# EMBERBOUND — MILESTONE 1 CODEX REVIEW HANDOFF
+# EMBERBOUND — MILESTONE 2 CODEX REVIEW HANDOFF
 
-**Purpose:** Independent, read-only audit of Claude-generated Roblox Luau code before Milestone 2.
+**Purpose:** independent, read-only review of the Claude-generated Milestone 2 implementation (Tap Upgrades, Economy & BigNum) before Milestone 2.1 and Milestone 3. Round 1 (audit of `024cd68`) returned FAIL with findings F1–F6; round 2 is the re-review of their corrections.
 
-This is the six-script Milestone 1 implementation extracted from the previously provided Claude response. The six script bodies are unchanged. It is **not** a Roblox `.rbxl` place file and does not include world assets; the client constructs the camera, arena, slime, and HUD at runtime. The `src/` file layout mirrors the intended Roblox Studio Explorer placement.
+- Pull request: [zelly-cious/Emberbound#1](https://github.com/zelly-cious/Emberbound/pull/1), branch `feature/m2-tap-upgrades-bignum`
+- **Corrections commit (round 2):** `e4b01088b953acb7f5d31b77cbf4e3f5b5e8adcf`
+- Audited implementation (round 1): `024cd68838d6c34633a00e7eadcb320c251186f0`
+- Milestone 1 baseline: `730218a` (sync-retry and `Camera.Focus` fixes)
+- **Status (1 Nov 2026):** round 2 re-review complete (Codex: CONDITIONAL PASS). Producer decisions are recorded (bounded BigNum precision contract; R2-1 and R2-2 deferred for M2 only; see `DECISIONS.md` 8–10). Milestone 2 is **frozen** until Roblox Studio QA (`M2_STUDIO_REGRESSION_GUIDE.md`, results in `review/M2_STUDIO_QA_RESULTS_TEMPLATE.md`). PR #1 stays unmerged.
+
+This is source only, not a Roblox `.rbxl` place file. The client builds the camera, arena, slime, HUD and upgrade panel at runtime. `src/` mirrors the Roblox Studio Explorer placement; script classes and the six RemoteEvents are listed in `M2_REVIEW_GUIDE.md` section 1. No DataStore persistence exists yet.
 
 ## What to read, in order
 
-1. `QA_REPORT.md` — user-reported manual test outcomes and limitations.
-2. `M1_REQUIREMENTS.md` — agreed scope, network contract, architecture, and acceptance criteria.
+1. `CODEX_REVIEW_HANDOFF.md` — entry point; the round 2 section comes first.
+2. `review/M2_CORRECTIONS_REPORT.md` — fixes for F1–F6, tradeoffs, tests and round 2 results.
 3. `AGENTS.md` — read-only reviewer rules.
-4. All six `.luau` files under `src/`.
-5. `REVIEW_PROMPT.md` — one-shot prompt and required report format.
+4. `M2_REQUIREMENTS.md` — frozen scope, exit criteria and known gaps.
+5. `M2_REVIEW_GUIDE.md` — hierarchy, scripts, architecture, BigNum, Gold flow, formulas, remote contracts, security and Studio checklists, limitations.
+6. All 24 `.luau` files under `src/`.
+7. `REREVIEW_PROMPT.md` — round 2 prompt and report format (historical; see its superseding note).
+8. `M2_STUDIO_REGRESSION_GUIDE.md` — the Roblox Studio QA procedure (next step), with `review/M2_STUDIO_QA_RESULTS_TEMPLATE.md`.
 
-## Roblox Studio object hierarchy
+Historical round 1 evidence, unchanged: `review/audits/Emberbound_M2_Independent_Audit.pdf` (the Codex audit), `review/M2_CHECK_RESULTS.md` (round 1 checks), `REVIEW_PROMPT.md` (round 1 prompt).
 
-```text
-ReplicatedStorage
-├── Shared (Folder)
-│   └── GameConfig (ModuleScript)
-└── Remotes (Folder)
-    ├── RequestAttack (RemoteEvent)
-    ├── ClientReady (RemoteEvent)
-    └── CombatUpdate (RemoteEvent)
-ServerScriptService
-├── CombatService (ModuleScript)
-└── ServerInit (Script)
-StarterPlayer
-└── StarterPlayerScripts
-    └── CombatClient (LocalScript)
-        ├── ArenaView (ModuleScript)
-        └── CombatHud (ModuleScript)
+Background: `M1_REQUIREMENTS.md` and `QA_REPORT.md` (Milestone 1 contract and user-reported M1 QA), `DECISIONS.md` (recorded producer decisions; none changes executable M2 code).
+
+## Re-running the offline checks
+
+```bash
+review/offline-harness/run.sh unit   path/to/luau     # the shipped 67 tests, via the real TestRunner
+review/offline-harness/run.sh probes path/to/luau     # 75 review probes (54 original + 21 for the corrections)
 ```
 
-The installer sets `Players.CharacterAutoLoads = false`; `ServerInit` also checks this at runtime. Each client constructs its own local 3D scene. No DataStore persistence is implemented in M1.
-
-## How to use with Codex
-
-**Codex app or local CLI:** Unzip this package into a project folder, open the extracted folder in Codex, then paste the text from `REVIEW_PROMPT.md` as the task. Ask for read-only review. Do not run the Studio installer in a normal shell; it's a Roblox Studio Luau Command Bar script.
-
-**Codex Cloud/PR review:** Add these extracted files to a GitHub repository (or a branch). Connect the repository to your Codex environment and request a read-only review with `REVIEW_PROMPT.md`. Codex Cloud availability/setup depends on your account and workspace. A plain ZIP is not a GitHub repository.
-
-**Important:** Code inspection cannot reproduce Roblox Studio runtime testing. Treat QA as user-reported evidence, not proof that Codex ran tests.
+The Luau CLI comes from the [luau-lang/luau releases](https://github.com/luau-lang/luau/releases). The harness fakes a minimal Roblox engine; its results are not Studio results.
 
 ## After the audit
 
-Send the report back to ChatGPT. Confirm the high-priority findings, send only the accepted fixes to Claude, and repeat the relevant Roblox Studio regression tests before milestone approval. Do not start Milestone 2 just because an AI says PASS.
+Send the report back, confirm the high-priority findings, apply only accepted fixes, and repeat the relevant Roblox Studio tests (`M2_REVIEW_GUIDE.md` section 9) before approving Milestone 2. Do not start Milestone 2.1 or Milestone 3 just because an AI says PASS.

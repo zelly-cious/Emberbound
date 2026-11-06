@@ -4,35 +4,43 @@
 	Location: ServerScriptService > CombatService (ModuleScript)
 
 	Server-authoritative combat for every player:
-	  - owns each player's combat state (stage, gold, tap damage, enemy HP)
+	  - owns each player's combat state (stage, tap damage, enemy HP)
 	  - validates and rate-limits attack requests
-	  - applies all damage through ONE function (ApplyDamage) so future damage
+	  - applies all damage through ONE function (ApplyDamage), so future damage
 	    sources (hero DPS) share the exact same death/reward/stage logic
 	  - sends authoritative updates only to the player they belong to
 
-	The client never sends numbers. RequestAttack and ClientReady carry no
-	arguments, and anything an exploiter adds to them is ignored.
+	Milestone 2 changes:
+	  - HP and damage are BigNums (finite precision: tested early-game values exact, large values approximate)
+	  - the enemy rules live in CombatRules (pure, unit-tested)
+	  - Gold lives in CurrencyService; a defeat calls CurrencyService.Grant
+	  - SetTapDamage lets UpgradeService change tap damage
+	  - the ClientReady handshake moved to PlayerSessionService
+
+	The client never sends numbers. RequestAttack carries no arguments, and
+	anything an exploiter adds to it is ignored.
 ]]
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 
+local BigNum = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("BigNum"))
 local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
+local ProgressionConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ProgressionConfig"))
+local CombatRules = require(ServerScriptService:WaitForChild("CombatRules"))
+local CurrencyService = require(ServerScriptService:WaitForChild("CurrencyService"))
 
+type BigNum = BigNum.BigNum
+type CombatState = CombatRules.CombatState
 type CombatSnapshot = GameConfig.CombatSnapshot
 type CombatUpdate = GameConfig.CombatUpdate
 type DamageSource = GameConfig.DamageSource
 
 type PlayerCombatState = {
-	stage: number,
-	gold: number,
-	tapDamage: number,
-	enemyId: number,
-	enemyName: string,
-	enemyHp: number,
-	enemyMaxHp: number,
+	combat: CombatState,
 	lastTapAt: number, -- os.clock() of the last ACCEPTED tap
-	lastSyncAt: number, -- os.clock() of the last full sync sent
+	synced: boolean, -- false until the client's first full sync; no partial updates before that
 }
 
 local REMOTE_WAIT_TIMEOUT = 10
@@ -48,7 +56,6 @@ local function getRemoteEvent(remoteName: string): RemoteEvent
 end
 
 local requestAttackRemote = getRemoteEvent(GameConfig.Network.RequestAttack)
-local clientReadyRemote = getRemoteEvent(GameConfig.Network.ClientReady)
 local combatUpdateRemote = getRemoteEvent(GameConfig.Network.CombatUpdate)
 
 local playerStates: { [Player]: PlayerCombatState } = {}
@@ -70,120 +77,98 @@ local function logLifecycle(message: string)
 	end
 end
 
--- Replaces the current enemy with a fresh one for the state's current stage.
-local function spawnEnemy(state: PlayerCombatState)
-	state.enemyId += 1
-	state.enemyName = GameConfig.GetEnemyName(state.stage)
-	state.enemyMaxHp = GameConfig.GetEnemyMaxHp(state.stage)
-	state.enemyHp = state.enemyMaxHp
-end
-
-local function createState(): PlayerCombatState
-	local combat = GameConfig.Combat
-	local state: PlayerCombatState = {
-		stage = combat.StartingStage,
-		gold = combat.StartingGold,
-		tapDamage = combat.StartingTapDamage,
-		enemyId = 0,
-		enemyName = "",
-		enemyHp = 0,
-		enemyMaxHp = 0,
-		lastTapAt = -math.huge,
-		lastSyncAt = -math.huge,
-	}
-	spawnEnemy(state)
-	return state
-end
-
-local function buildSnapshot(state: PlayerCombatState): CombatSnapshot
+local function buildSnapshot(combat: CombatState): CombatSnapshot
 	return {
-		stage = state.stage,
-		gold = state.gold,
-		tapDamage = state.tapDamage,
-		enemyId = state.enemyId,
-		enemyName = state.enemyName,
-		enemyHp = state.enemyHp,
-		enemyMaxHp = state.enemyMaxHp,
+		stage = combat.stage,
+		tapDamage = BigNum.toString(combat.tapDamage),
+		enemyId = combat.enemyId,
+		enemyName = combat.enemyName,
+		enemyHp = BigNum.toString(combat.enemyHp),
+		enemyMaxHp = BigNum.toString(combat.enemyMaxHp),
 	}
 end
 
 -- FireClient targets exactly one player, so updates are never broadcast.
-local function sendUpdate(player: Player, update: CombatUpdate)
-	if player.Parent ~= Players then
+local function sendUpdate(player: Player, state: PlayerCombatState, update: CombatUpdate)
+	if not state.synced or player.Parent ~= Players then
 		return
 	end
 	combatUpdateRemote:FireClient(player, update)
 end
 
-local function getOrCreateState(player: Player): PlayerCombatState?
-	if player.Parent ~= Players then
-		return nil -- leaving or already gone; never recreate state for them
+-- Accepts a BigNum or a plain number (Milestone 1 call shape); nil for anything invalid or not positive.
+local function toDamage(amount: BigNum | number): BigNum?
+	if typeof(amount) == "number" then
+		if amount ~= amount or amount <= 0 or amount == math.huge then
+			return nil
+		end
+		return BigNum.fromNumber(amount)
 	end
-	local existing = playerStates[player]
-	if existing then
-		return existing
+	if not BigNum.isValid(amount) or BigNum.isZero(amount) then
+		return nil
 	end
-	local state = createState()
-	playerStates[player] = state
-	logLifecycle(`Created combat state for {player.Name}`)
-	return state
-end
-
-local function isValidDamageAmount(amount: number): boolean
-	return typeof(amount) == "number" and amount == amount and amount > 0 and amount < math.huge
+	return amount
 end
 
 --[[
 	The ONLY place damage is applied. Taps call it today; hero DPS can call it later.
-
-	Exactly-once death processing: this function never yields, and Roblox runs
-	each event handler to completion before starting the next one. The HP check,
-	gold award, stage advance and next-enemy spawn therefore happen as one
-	uninterrupted step. Any tap processed afterwards hits the NEW enemy (which
-	has full HP), so the same enemy can never be rewarded twice.
+	It never yields: the hit, any defeat, the Gold grant and the next spawn
+	happen as one uninterrupted step, so an enemy is rewarded exactly once.
 ]]
-function CombatService.ApplyDamage(player: Player, amount: number, source: DamageSource): boolean
+function CombatService.ApplyDamage(player: Player, amount: BigNum | number, source: DamageSource): boolean
 	local state = playerStates[player]
 	if not state then
 		return false
 	end
-	if not isValidDamageAmount(amount) then
-		warn(`[CombatService] Rejected invalid damage amount {amount} for {player.Name}`)
+	local damage = toDamage(amount)
+	if damage == nil then
+		warn(`[CombatService] Rejected invalid damage amount for {player.Name}`)
 		return false
 	end
 
-	local appliedDamage = math.min(amount, state.enemyHp)
-	state.enemyHp -= appliedDamage
+	local outcome = CombatRules.resolveHit(state.combat, damage)
 
-	if state.enemyHp > 0 then
-		sendUpdate(player, {
+	if not outcome.defeated then
+		sendUpdate(player, state, {
 			kind = "Hit",
-			snapshot = buildSnapshot(state),
-			damage = appliedDamage,
+			snapshot = buildSnapshot(state.combat),
+			damage = BigNum.toString(outcome.appliedDamage),
 			source = source,
 		})
 		return true
 	end
 
-	-- Enemy defeated: reward for the stage it belonged to, then advance.
-	local goldAwarded = GameConfig.GetGoldReward(state.stage)
-	state.gold += goldAwarded
-	state.stage += 1
-	spawnEnemy(state)
+	if not BigNum.isZero(outcome.goldAwarded) then
+		CurrencyService.Grant(player, ProgressionConfig.GoldCurrencyId, outcome.goldAwarded, "EnemyDefeated")
+	end
 
-	sendUpdate(player, {
+	sendUpdate(player, state, {
 		kind = "Defeated",
-		snapshot = buildSnapshot(state),
-		damage = appliedDamage,
+		snapshot = buildSnapshot(state.combat),
+		damage = BigNum.toString(outcome.appliedDamage),
 		source = source,
-		goldAwarded = goldAwarded,
+		goldAwarded = BigNum.toString(outcome.goldAwarded),
+	})
+	return true
+end
+
+-- Sets the damage each accepted tap deals. Called by UpgradeService.
+function CombatService.SetTapDamage(player: Player, amount: BigNum): boolean
+	local state = playerStates[player]
+	if not state or not BigNum.isValid(amount) or BigNum.isZero(amount) then
+		return false
+	end
+	state.combat.tapDamage = amount
+	sendUpdate(player, state, {
+		kind = "Stats",
+		snapshot = buildSnapshot(state.combat),
 	})
 	return true
 end
 
 local function handleTapRequest(player: Player)
 	local state = playerStates[player]
-	if not state then
+	if not state or not state.synced then
 		return
 	end
 
@@ -194,31 +179,19 @@ local function handleTapRequest(player: Player)
 	state.lastTapAt = now
 
 	-- Damage comes from server state, never from the client.
-	CombatService.ApplyDamage(player, state.tapDamage, "Tap")
-end
-
-local function handleClientReady(player: Player)
-	-- Created lazily as well, so the handshake works even if this event
-	-- arrives before PlayerAdded was processed.
-	local state = getOrCreateState(player)
-	if not state then
-		return
-	end
-
-	local now = os.clock()
-	if now - state.lastSyncAt < GameConfig.Network.ClientReadyCooldown then
-		return
-	end
-	state.lastSyncAt = now
-
-	sendUpdate(player, {
-		kind = "Sync",
-		snapshot = buildSnapshot(state),
-	})
+	CombatService.ApplyDamage(player, state.combat.tapDamage, "Tap")
 end
 
 function CombatService.AddPlayer(player: Player)
-	getOrCreateState(player)
+	if playerStates[player] or player.Parent ~= Players then
+		return
+	end
+	playerStates[player] = {
+		combat = CombatRules.newState(),
+		lastTapAt = -math.huge,
+		synced = false,
+	}
+	logLifecycle(`Created combat state for {player.Name}`)
 end
 
 function CombatService.RemovePlayer(player: Player)
@@ -228,7 +201,24 @@ function CombatService.RemovePlayer(player: Player)
 	end
 end
 
--- Connects the remote handlers. Safe to call once; repeated calls are ignored.
+function CombatService.HasPlayer(player: Player): boolean
+	return playerStates[player] ~= nil
+end
+
+-- Sends the full combat state and allows hit/stat updates from now on.
+function CombatService.SyncPlayer(player: Player)
+	local state = playerStates[player]
+	if not state then
+		return
+	end
+	state.synced = true
+	sendUpdate(player, state, {
+		kind = "Sync",
+		snapshot = buildSnapshot(state.combat),
+	})
+end
+
+-- Connects the attack remote. Safe to call once; repeated calls are ignored.
 function CombatService.Start()
 	if started then
 		warn("[CombatService] Start() was called more than once; ignoring.")
@@ -239,10 +229,6 @@ function CombatService.Start()
 	-- Extra arguments sent by a client are deliberately not read.
 	requestAttackRemote.OnServerEvent:Connect(function(player: Player)
 		handleTapRequest(player)
-	end)
-
-	clientReadyRemote.OnServerEvent:Connect(function(player: Player)
-		handleClientReady(player)
 	end)
 end
 

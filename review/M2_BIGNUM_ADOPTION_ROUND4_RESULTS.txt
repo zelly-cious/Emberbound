@@ -1,0 +1,196 @@
+M2 round 4 BigNum adoption — executed verification (review tooling; NOT Roblox Studio)
+Tree: commit 28861fc8bd9fe45053279853a0a29f7f6033ca5f on feature/m2-bignum-adoption-round4 (this log is added in the next commit; it changes nothing else).
+Host: Linux x86-64, Python 3.13.18, Lua 5.1.5  Copyright (C) 1994-2012 Lua.org, PUC-Rio. Luau is translated to Lua 5.1 by review/ftz-harness/luau51.py; the Roblox engine is faked.
+
+## V-1 Gameplay source unchanged
+git diff --stat 9a988c9 HEAD -- src: [] (empty = unchanged)
+git diff --name-only e9d878d HEAD -- src:
+  src/ReplicatedStorage/Shared/BigNum.luau
+  src/ServerScriptService/Tests/BigNumTests.luau
+
+## V-2 Installer generator --check
+installer matches a fresh generation
+manifest matches a fresh generation
+exit=0
+
+## V-2b Installer v1.2.0 vs v1.1.0 (bceecb6): parts that differ
+  header -	Installer version 1.1.0
+  header -	Frozen source commit e9d878d94155610558c9c6252d76f202dfd956b4
+  header -	24 files; SHA-256 manifest: SOURCE_HASHES.txt, round 3
+  header +	Installer version 1.2.0
+  header +	Frozen source commit 9a988c9254e07ac50dcf32fe4b55ba975613390d
+  header +	24 files; SHA-256 manifest: SOURCE_HASHES.txt, round 4 (BigNum DEFECT-001/001B adoption)
+  header -local INSTALLER_VERSION = "1.1.0"
+  header -local FROZEN_COMMIT = "e9d878d94155610558c9c6252d76f202dfd956b4"
+  header +local INSTALLER_VERSION = "1.2.0"
+  header +local FROZEN_COMMIT = "9a988c9254e07ac50dcf32fe4b55ba975613390d"
+  changed FILES blocks: [1, 12] of 24
+  installer logic after the FILES blocks byte-identical: True
+
+## V-3 Installer offline test suite (tools/m2/tests/run_tests.py)
+PASS source commit 9a988c9254e07ac50dcf32fe4b55ba975613390d resolves; src/ holds exactly 24 files; all SHA-256 match SOURCE_HASHES.txt round 4
+PASS classes: 2 Scripts (ServerInit, TestRunner), 1 LocalScript (CombatClient), 21 ModuleScripts
+PASS Appendix A (paths, classes, SHA-256) and Appendix B (bytes, lines, Adler-32) of the guide match the frozen files
+PASS two generations are byte-identical
+PASS committed InstallM2.lua and INSTALLER_MANIFEST.txt equal a fresh generation
+PASS manifest records the installer SHA-256 b12fa7023f25a93d2e2a80aef0042c0cf962d81a7aef84dd4ca1fd06873623d4
+PASS second decoder rebuilds all 24 embedded files byte for byte (one literal per source line)
+PASS installer is ASCII-only with LF line endings
+PASS installation is disabled by default (single setting)
+PASS installer logic uses no GetService (it creates missing services), HTTP, DataStore, publish, require, loadstring, yields or other unrelated APIs
+PASS every service lookup goes through one non-creating game:FindService helper (named directly: ['Players', 'RunService'])
+PASS the only Destroy() call removes objects from this run's own 'built' list
+PASS luac5.1 -p accepts the installer (Lua 5.1 subset of Luau)
+PASS the default setting is check-only
+PASS check mode on a fresh Baseplate reports ready and changes nothing
+PASS check mode in a place that is not fresh reports conflicts and changes nothing
+PASS installation on a fresh Baseplate creates exactly the reviewed hierarchy
+PASS installation when CharacterAutoLoads is already false leaves it false
+PASS a second run after a successful installation refuses and changes nothing
+PASS collision refused: Folder Shared in ReplicatedStorage
+PASS collision refused: ModuleScript Shared in ReplicatedStorage (wrong class)
+PASS collision refused: Folder Remotes in ReplicatedStorage
+PASS collision refused: Folder Tests in ServerScriptService
+PASS collision refused: ModuleScript CombatService in ServerScriptService
+PASS collision refused: Part named ServerInit in ServerScriptService (not a script)
+PASS collision refused: Folder named Wallet in ServerScriptService
+PASS collision refused: LocalScript CombatClient in StarterPlayerScripts
+PASS collision refused: Folder named CombatClient in StarterPlayerScripts
+PASS collision refused: stray Script in Workspace
+PASS collision refused: stray ModuleScript in ServerStorage
+PASS collision refused: stray LocalScript in StarterGui
+PASS collision refused: stray Script in StarterCharacterScripts
+PASS collision refused: stray RemoteFunction named Remotes in ReplicatedStorage
+PASS unsafe state refused: playtest running
+PASS unsafe state refused: playtest paused
+PASS unsafe state refused: not Roblox Studio
+PASS unsafe state refused: IsEdit raises an error
+PASS unsafe state refused: IsRunning raises an error
+PASS unsafe state refused: IsStudio raises an error
+PASS unsafe state refused: IsEdit returns a non-boolean
+PASS unsafe state refused: RunService unavailable
+PASS unsafe state refused: published place (non-zero PlaceId)
+PASS unsafe state refused: published place is refused with a report request
+PASS unsafe state refused: PlaceId unreadable
+PASS unsafe state refused: StarterPlayerScripts missing
+PASS a missing scan-only service is skipped and never created: SoundService
+PASS a missing scan-only service is skipped and never created: Lighting
+PASS a missing scan-only service is skipped and never created: StarterPack
+PASS a missing scan-only service is skipped and never created: StarterGui
+PASS a missing scan-only service is skipped and never created: ServerStorage
+PASS a missing scan-only service is skipped and never created: ReplicatedFirst
+PASS a missing required service is refused and never created: RunService
+PASS a missing required service is refused and never created: Players
+PASS a missing required service is refused and never created: ReplicatedStorage
+PASS a missing required service is refused and never created: ServerScriptService
+PASS a missing required service is refused and never created: StarterPlayer
+PASS damaged installer refused: one character changed inside an embedded file
+PASS damaged installer refused: one embedded file removed
+PASS damaged installer refused: a path duplicated
+PASS damaged installer refused: a class changed
+PASS damaged installer refused: a recorded checksum changed
+PASS damaged installer refused: one source line dropped
+PASS truncated pastes never change the place
+PASS installation works when line breaks become spaces
+PASS installation works with Windows CRLF line endings
+PASS rollback after failure: Instance.new fails on the first object
+PASS rollback after failure: Instance.new fails on the first RemoteEvent
+PASS rollback after failure: Instance.new fails on the 10th object (a script)
+PASS rollback after failure: Instance.new fails on the last script
+PASS rollback after failure: setting Source fails for UpgradePanel
+PASS rollback after failure: Studio alters the text of Wallet
+PASS rollback after failure: setting Enabled fails for TestRunner
+PASS rollback after failure: ServerInit reports RunContext = Client
+PASS rollback after failure: adding Tests to ServerScriptService fails (after Shared and Remotes were added)
+PASS rollback after failure: adding CombatClient fails (the last object added)
+PASS rollback after failure: setting CharacterAutoLoads fails
+PASS rollback after failure: CharacterAutoLoads silently stays true
+PASS rollback after failure: final verification reads different text for BigNum
+PASS rollback still removes every created object when the CharacterAutoLoads read fails after the restore write
+PASS rollback still removes every created object when every CharacterAutoLoads read fails during rollback
+PASS rollback still removes every created object when the CharacterAutoLoads restore write fails
+PASS rollback that cannot remove an object says so (documented limitation)
+[installer tests] 69 passed, 0 failed, 69 declared
+PASS Lua behaviour tests against the fake engine: [installer tests] 69 passed, 0 failed, 69 declared (every declared test must run and pass)
+PASS replicated Appendix B logic on the installed mock place: scripts matching 24 / 24, remotes 6 / 6, extra scripts 0, folders 3 / 3, CharacterAutoLoads false (offline replica only; the real checker must still run in Studio)
+PASS working tree src/ is identical to the source commit (no gameplay change in the adoption)
+PASS SOURCE_HASHES.txt rounds 1-3 keep their hash lines unchanged (historical manifests preserved)
+PASS round 4 is the only current manifest; rounds 1-3 are marked historical
+PASS every change since the source commit is a release-package file (tools/m2/, review/, manifest, guides, docs)
+[offline checks] 19 passed, 0 failed
+exit=0
+
+## V-4/V-5/V-6 Release-package consistency and Appendix B checker text (tools/m2/tests/check_release_package.py)
+PASS working-tree src/ is identical to the source commit 9a988c9
+PASS all 24 working-tree source files have the source commit's bytes, lines, Adler-32 and SHA-256
+PASS SOURCE_HASHES.txt round 4 lists exactly the 24 source SHA-256 values
+PASS round 4 heading names the source commit and is marked current
+PASS rounds 1-3 keep their hash lines exactly as in the round 3 release
+PASS rounds 1-3 are marked historical
+PASS round 4 differs from round 3 only in BigNum.luau and BigNumTests.luau
+PASS guide 'Code under test' pins the source commit and round 4
+PASS guide browse and ZIP links point to the source commit
+PASS all 24 Appendix A file links point to the source commit (24 found)
+PASS Appendix A checksum table (bytes, lines, Adler-32, SHA-256) equals the source values
+PASS Appendix B checker table equals the source values (24 rows)
+PASS guide T-1 block equals the 8 lines the shipped TestRunner prints offline (ALL PASSED (67 tests))
+PASS guide T-1 sum, T-2 expectation and the allowed-messages table say 67; no current '61 tests' remains
+PASS INSTALLER_MANIFEST.txt records the installer's SHA-256 and size (240675 bytes)
+PASS installer manifest names the source commit and version 1.2.0
+PASS installer manifest file rows equal the source values (24 rows)
+PASS InstallM2.lua embeds the source commit and version
+PASS the pinned download commit in INSTALL_INSTRUCTIONS.md holds byte-identical installer bytes
+PASS INSTALL_INSTRUCTIONS.md quotes the installer SHA-256 (twice), v1.2.0 and the source commit
+PASS the Appendix B link in INSTALL_INSTRUCTIONS.md points to a guide holding the round 4 checker values
+PASS INSTALL_INSTRUCTIONS.md expects 67 tests (BigNumTests 31)
+PASS tools/m2/README.md names v1.2.0, the installer SHA-256 and the source commit
+PASS QA template pins the source commit, round 4 and 67 tests
+PASS M2_REVIEW_GUIDE.md section 9 says round 4 and 67 tests
+PASS M2_REQUIREMENTS.md records the adoption and 67 tests
+PASS README.md says 67 tests
+PASS review/M2_STUDIO_QA_RESULTS.md is byte-identical to QA commit ae861bd (historical evidence)
+PASS historical DEFECT reports are unchanged except one added DEFECT-001B status row
+PASS Appendix B checker text offline, round 4 checker, round 4 sources: [Parity] scripts matching: 24 / 24, remotes: 6 / 6, extra scripts: 0 RESULT: PASS
+PASS Appendix B checker text offline, round 4 checker, round 3 BigNum and BigNumTests (negative control): [Parity] scripts matching: 22 / 24, remotes: 6 / 6, extra scripts: 0 RESULT: FAIL
+PASS Appendix B checker text offline, round 3 checker, round 4 sources (negative control: the expected initial 22/24): [Parity] scripts matching: 22 / 24, remotes: 6 / 6, extra scripts: 0 RESULT: FAIL
+[package checks] 32 passed, 0 failed
+exit=0
+
+## V-7 Checker sensitivity: one planted change per run, restored from git afterwards
+planted: Appendix B BigNum checksum
+  FAIL Appendix B checker table equals the source values (24 rows)
+  FAIL Appendix B checker text offline, round 4 checker, round 4 sources: [Parity] scripts matching: 23 / 24, remotes: 6 / 6, extra scripts: 0 RESULT: FAIL:    ServerScriptService/Tests/TestKit
+  [package checks] 30 passed, 2 failed
+planted: SOURCE_HASHES.txt round 4 BigNum SHA-256
+  FAIL SOURCE_HASHES.txt round 4 lists exactly the 24 source SHA-256 values
+  [package checks] 31 passed, 1 failed
+planted: INSTALL_INSTRUCTIONS.md BigNumTests count
+  FAIL INSTALL_INSTRUCTIONS.md expects 67 tests (BigNumTests 31)
+  [package checks] 31 passed, 1 failed
+tree clean after restore: yes
+
+## V-8/V-9 Unit tests (shipped TestRunner) and historical review probes, four floating-point modes (translated harness)
+[gradual   ] tiny*1=4.9406564584124654e-324 format(%.17g,tiny)=4.9406564584124654e-324 tostring(tiny)=5e-324 tonumber(5e-324)>0=true
+[gradual   ] unit   exit=0 ALL PASSED (67 tests)
+[gradual   ] probes exit=0 75 passed, 0 failed
+[ftz       ] tiny*1=0 format(%.17g,tiny)=4.9406564584124654e-324 tostring(tiny)=5e-324 tonumber(5e-324)>0=true
+[ftz       ] unit   exit=0 ALL PASSED (67 tests)
+[ftz       ] probes exit=0 75 passed, 0 failed
+[ftz-winfmt] tiny*1=0 format(%.17g,tiny)=0 tostring(tiny)=5e-324 tonumber(5e-324)>0=true
+[ftz-winfmt] unit   exit=0 ALL PASSED (67 tests)
+[ftz-winfmt] probes exit=0 75 passed, 0 failed
+[winfmt    ] tiny*1=4.9406564584124654e-324 format(%.17g,tiny)=0 tostring(tiny)=5e-324 tonumber(5e-324)>0=true
+[winfmt    ] unit   exit=0 ALL PASSED (67 tests)
+[winfmt    ] probes exit=0 75 passed, 0 failed
+
+## V-8 per-suite TestRunner lines (gradual)
+[Tests] BigNumTests: 31 passed, 0 failed
+[Tests] CombatFormulaTests: 4 passed, 0 failed
+[Tests] CombatRulesTests: 5 passed, 0 failed
+[Tests] ProgressionTests: 7 passed, 0 failed
+[Tests] RateLimiterTests: 3 passed, 0 failed
+[Tests] TestKitTests: 7 passed, 0 failed
+[Tests] WalletTests: 10 passed, 0 failed
+[Tests] ALL PASSED (67 tests)
+
+NOTE: Codex's native Luau 0.745 run reported historical probes 75/75 gradual and 74/75 FTZ (outdated differential expectation). The translated harness above is not a native result.
