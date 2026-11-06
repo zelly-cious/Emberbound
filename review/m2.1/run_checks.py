@@ -48,6 +48,8 @@ def bundle(source: str, entry_text: str, replace: dict[str, str] | None = None) 
     # The same detached baselines run_matrix.bundle adds (the historical probes compare against them).
     texts["M1/ReplicatedStorage/Shared/GameConfig"] = run_matrix.git_show(run_matrix.M1_BASELINE, "src/ReplicatedStorage/Shared/GameConfig.luau")
     texts["AUDITED/ReplicatedStorage/Shared/BigNum"] = run_matrix.git_show(run_matrix.AUDITED, "src/ReplicatedStorage/Shared/BigNum.luau")
+    # The temporary Studio QA bridge, kept out of the tree (key outside any service); the probes add it as a Script.
+    texts["QA/EmberboundStatQA"] = (HERE / "EmberboundStatQA.server.luau").read_text()
     for key, text in texts.items():
         translated = luau51.translate(text)
         assert "]==========]" not in translated

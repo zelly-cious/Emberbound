@@ -237,6 +237,63 @@ check("... and combat tap damage and the sheet are unchanged (resync 9e900719925
 			return resultReason(messages) == "Ok" and UpgradeService.GetLevel(eve, UPGRADE.id) == 3 and gold(eve) == "90"
 		end)())
 
+print("== Studio QA bridge (review/m2.1/EmberboundStatQA.server.luau), offline")
+
+-- The fake engine has no Instance.new or ServerStorage: give the bridge minimal stand-ins.
+local bridgeInstance = nil
+local fakeServerStorage = { Name = "ServerStorage" }
+local realGetService = Shim.game.GetService
+Shim.game.GetService = function(self, name)
+	if name == "ServerStorage" then
+		return fakeServerStorage
+	end
+	return realGetService(self, name)
+end
+-- _G explicitly: the fake engine has its own local named Instance in the same chunk.
+_G.Instance = {
+	new = function(className)
+		assert(className == "BindableFunction", "the bridge creates only a BindableFunction")
+		bridgeInstance = { ClassName = className }
+		return bridgeInstance
+	end,
+}
+Shim.addSource("ServerScriptService/EmberboundStatQA", "Script", SOURCES["QA/EmberboundStatQA"])
+Shim.runScript("ServerScriptService/EmberboundStatQA")
+Shim.game.GetService = realGetService
+check("the bridge installs EmberboundStatQA in ServerStorage",
+	bridgeInstance ~= nil and bridgeInstance.Name == "EmberboundStatQA" and bridgeInstance.Parent == fakeServerStorage)
+local function invoke(...)
+	if bridgeInstance == nil then
+		return ""
+	end
+	return bridgeInstance.OnInvoke(...)
+end
+local function says(text, expected)
+	return string.find(text, expected, 1, true) ~= nil
+end
+
+local finn = Shim.addPlayer("Finn")
+Shim.fireServer("ClientReady", finn)
+CurrencyService.Grant(finn, GOLD, n(100), "Probe")
+buy(finn)
+drain(finn)
+local x2 = invoke("x2", "Finn")
+check("bridge x2: true, tap 2 -> 4, and the client sees 4", says(x2, "-> true") and says(x2, "tapDamage=4") and clientTap(drain(finn)) == "4", x2)
+buy(finn)
+local afterPurchase = invoke("state", "Finn")
+check("REQUIRED STUDIO CHECK, offline: after a purchase the x2 survives (level 3: 6, not 3)",
+	says(afterPurchase, "tapDamage=6") and UpgradeService.GetLevel(finn, UPGRADE.id) == 3 and clientTap(drain(finn)) == "6", afterPurchase)
+local removed = invoke("remove", "Finn")
+check("bridge remove: true, back to 3", says(removed, "-> true") and says(removed, "tapDamage=3") and clientTap(drain(finn)) == "3", removed)
+local overflow = invoke("overflow", "Finn")
+check("bridge overflow: flat true, x2 false, tap stays 9e9007199254740991",
+	says(overflow, "flat 9e9007199254740991 -> true") and says(overflow, "x2 -> false") and says(overflow, "tapDamage=9e9007199254740991"), overflow)
+local cleared = invoke("clearOverflow", "Finn")
+check("bridge clearOverflow: x2 was never installed (false), flat removed (true), back to 3",
+	says(cleared, "remove x2 -> false") and says(cleared, "remove flat -> true") and says(cleared, "tapDamage=3"), cleared)
+check("bridge reports an unknown player", invoke("state", "Nobody") == "[QA] player not found")
+drain(finn)
+
 check("no remote handler raised an error", #Shim.handlerErrors == 0, table.concat(Shim.handlerErrors, "; "))
 
 print(`[StatService probes] {passed} passed, {failed} failed`)
