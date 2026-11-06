@@ -140,6 +140,103 @@ local carol = Shim.addPlayer("Carol")
 Shim.fireServer("ClientReady", carol)
 check("a player who joins later starts fresh (tap 1, no modifiers)", value(carol) == "1" and clientTap(drain(carol)) == "1")
 
+print("== M2.1 failure paths: a stat change that cannot be applied changes nothing")
+
+local HUGE = BigNum.parse("9e9007199254740991") -- the largest exponent; x2 overflows it
+local function gold(player)
+	local balance = CurrencyService.GetBalance(player, GOLD)
+	return if balance then BigNum.toString(balance) else "nil"
+end
+local function resultReason(messages)
+	local reason = nil
+	for _, message in messages do
+		if message.remote == "UpgradeUpdate" and message.payload.result then
+			reason = message.payload.result.reason
+		end
+	end
+	return reason
+end
+-- The server's combat tap damage, read back through a full resync.
+local function resyncTap(player)
+	Shim.advanceClock(2)
+	Shim.fireServer("ClientReady", player)
+	return clientTap(drain(player))
+end
+
+local dana = Shim.addPlayer("Dana")
+Shim.fireServer("ClientReady", dana)
+drain(dana)
+check("a flat 9e9007199254740991 bonus applies (still representable)",
+	StatService.SetModifier(dana, TAP, "equipment", "huge", { flat = HUGE })
+		and value(dana) == "9e9007199254740991" and clientTap(drain(dana)) == "9e9007199254740991")
+local warningsBeforeDouble = #Shim.warnings
+check("a x2 modifier on top would overflow: SetModifier returns false, one warning, no update",
+	not StatService.SetModifier(dana, TAP, "perk", "double", { multiplier = 2 })
+		and #drain(dana) == 0 and #Shim.warnings == warningsBeforeDouble + 1)
+check("the failed x2 was not installed (RemoveModifier finds nothing); the previous sheet is intact",
+	not StatService.RemoveModifier(dana, TAP, "perk", "double") and value(dana) == "9e9007199254740991")
+check("combat tap damage is unchanged after the failed update (resync: 9e9007199254740991)", resyncTap(dana) == "9e9007199254740991")
+CurrencyService.Grant(dana, GOLD, n(100), "Probe")
+drain(dana)
+buy(dana)
+local danaBuy = drain(dana)
+check("success path unchanged: a purchase with the flat bonus charges 5, levels to 2, replies Ok, tap 9e9007199254740991",
+	resultReason(danaBuy) == "Ok" and gold(dana) == "95" and UpgradeService.GetLevel(dana, UPGRADE.id) == 2
+		and #danaBuy == 3 and danaBuy[1].remote == "CurrencyUpdate" and danaBuy[2].remote == "CombatUpdate"
+		and clientTap(danaBuy) == "9e9007199254740991")
+check("a x0.5 then a x2 fit (4.5e... then 9e9007199254740991)",
+	StatService.SetModifier(dana, TAP, "perk", "half", { multiplier = 0.5 })
+		and StatService.SetModifier(dana, TAP, "hero", "double", { multiplier = 2 }) and value(dana) == "9e9007199254740991")
+drain(dana)
+check("removing the x0.5 would overflow: RemoveModifier returns false, keeps it, sends nothing",
+	not StatService.RemoveModifier(dana, TAP, "perk", "half") and #drain(dana) == 0 and value(dana) == "9e9007199254740991")
+check("combat tap damage is still 9e9007199254740991", resyncTap(dana) == "9e9007199254740991")
+
+-- A failed upgrade application: a sheet whose modifiers were stored before a base existed
+-- (as when modifiers are restored before the upgrades report), so the base cannot be combined.
+local eve = Shim.addPlayer("Eve")
+Shim.fireServer("ClientReady", eve)
+CurrencyService.Grant(eve, GOLD, n(100), "Probe")
+drain(eve)
+StatService.RemovePlayer(eve)
+StatService.AddPlayer(eve)
+check("without a base, the flat 9e9007199254740991 and the x2 are only stored",
+	StatService.SetModifier(eve, TAP, "equipment", "huge", { flat = HUGE })
+		and StatService.SetModifier(eve, TAP, "perk", "double", { multiplier = 2 }) and StatService.GetValue(eve, TAP) == nil)
+buy(eve)
+local eveFailed = drain(eve)
+check("a purchase whose new tap damage cannot be applied is refused before any Gold moves: EffectFailed, Gold 100, level 1, no Gold or combat update",
+	resultReason(eveFailed) == "EffectFailed" and #eveFailed == 1 and gold(eve) == "100" and UpgradeService.GetLevel(eve, UPGRADE.id) == 1)
+check("combat tap damage is unchanged after the refused purchase (resync: 1)", resyncTap(eve) == "1")
+check("once the x2 is removed the purchase succeeds: Gold 95, level 2, Ok, tap 9e9007199254740991",
+	(function()
+		if not StatService.RemoveModifier(eve, TAP, "perk", "double") then
+			return false
+		end
+		buy(eve)
+		local messages = drain(eve)
+		return resultReason(messages) == "Ok" and gold(eve) == "95" and UpgradeService.GetLevel(eve, UPGRADE.id) == 2
+			and clientTap(messages) == "9e9007199254740991"
+	end)())
+
+-- Fault injection: CombatService rejects the prepared damage after the spend (not reachable today).
+local realSetTapDamage = CombatService.SetTapDamage
+CombatService.SetTapDamage = function()
+	return false
+end
+buy(eve)
+local refunded = drain(eve)
+CombatService.SetTapDamage = realSetTapDamage
+check("if the prepared damage is still rejected after the spend, the purchase is undone: EffectFailed, Gold refunded to 95, level 2",
+	resultReason(refunded) == "EffectFailed" and gold(eve) == "95" and UpgradeService.GetLevel(eve, UPGRADE.id) == 2)
+check("... and combat tap damage and the sheet are unchanged (resync 9e9007199254740991; next purchase Ok, level 3, Gold 90)",
+	resyncTap(eve) == "9e9007199254740991"
+		and (function()
+			buy(eve)
+			local messages = drain(eve)
+			return resultReason(messages) == "Ok" and UpgradeService.GetLevel(eve, UPGRADE.id) == 3 and gold(eve) == "90"
+		end)())
+
 check("no remote handler raised an error", #Shim.handlerErrors == 0, table.concat(Shim.handlerErrors, "; "))
 
 print(`[StatService probes] {passed} passed, {failed} failed`)

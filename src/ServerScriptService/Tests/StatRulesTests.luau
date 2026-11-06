@@ -210,6 +210,43 @@ local tests: { TestKit.TestCase } = {
 		end,
 	},
 	{
+		name = "a multiplier and its inverse cancel even at the largest exponent",
+		run = function()
+			-- The factors are combined before the sum is multiplied, so x2 then x0.5 never overflows on the way.
+			local sheet = sheetWithBase(n(1))
+			expectTrue(StatRules.setModifier(sheet, TAP, "equipment", "huge", { flat = p("9e9007199254740991") }))
+			expectTrue(StatRules.setModifier(sheet, TAP, "hero", "double", { multiplier = 2 }) and true)
+			expectTrue(StatRules.setModifier(sheet, TAP, "perk", "half", { multiplier = 0.5 }))
+			expectEqual(combined(sheet), "9e9007199254740991", "hero x2 (applied first by source order) and perk x0.5 cancel")
+		end,
+	},
+	{
+		name = "copySheet makes an independent copy",
+		run = function()
+			local sheet = sheetWithBase(n(10))
+			expectTrue(StatRules.setModifier(sheet, TAP, "hero", "h1", { flat = n(5) }))
+			local copy = StatRules.copySheet(sheet)
+			expectTrue(StatRules.setModifier(copy, TAP, "hero", "h2", { multiplier = 2 }))
+			expectTrue(StatRules.removeModifier(copy, TAP, "hero", "h1"))
+			expectTrue(StatRules.setBase(copy, TAP, n(40)))
+			expectEqual(combined(copy), "80")
+			expectEqual(combined(sheet), "15", "the original keeps its base and its modifiers")
+			expectEqual(StatRules.countModifiers(sheet, TAP), 1)
+		end,
+	},
+	{
+		name = "combining past the largest exponent raises BigNum's overflow error",
+		run = function()
+			-- StatService catches this and keeps the previous sheet and tap damage (DEFECT regression for M2.1).
+			local sheet = sheetWithBase(n(1))
+			expectTrue(StatRules.setModifier(sheet, TAP, "equipment", "huge", { flat = p("9e9007199254740991") }))
+			expectEqual(combined(sheet), "9e9007199254740991", "the flat bonus alone is still representable")
+			expectTrue(StatRules.setModifier(sheet, TAP, "perk", "double", { multiplier = 2 }))
+			local ok, problem = pcall(StatRules.combine, sheet, TAP)
+			expectTrue(not ok and string.find(tostring(problem), "overflow", 1, true) ~= nil, "x2 overflows the exponent")
+		end,
+	},
+	{
 		name = "separate sheets are independent",
 		run = function()
 			local first = sheetWithBase(n(10))

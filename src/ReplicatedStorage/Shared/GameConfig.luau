@@ -58,7 +58,8 @@ export type UpgradeView = {
 	nextCost: string?,
 }
 
-export type PurchaseReason = "Ok" | "InsufficientFunds" | "MaxLevel"
+-- EffectFailed (M2.1): the upgrade's new stat could not be applied, so nothing was charged. The client shows "Purchase failed".
+export type PurchaseReason = "Ok" | "InsufficientFunds" | "MaxLevel" | "EffectFailed"
 
 export type PurchaseResult = {
 	requestId: number,

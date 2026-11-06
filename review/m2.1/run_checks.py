@@ -30,6 +30,7 @@ import luau51  # noqa: E402
 import run_matrix  # noqa: E402
 
 MAIN = "227962341facb26ddc6eb074ca7e49018dfc7acb"
+PREVIOUS = "2771db13aaec1bd6884daa32656c37f70f0157c4"  # PR #3 head before the failure-path fix
 STAT_RULES = "ServerScriptService/StatRules"
 results: list[tuple[bool, str]] = []
 
@@ -73,8 +74,8 @@ MUTATIONS = {
         "total = BigNum.mul(total, BigNum.fromNumber(1 + modifier.percent))",
     ),
     "rounded after every step": (
-        "total = BigNum.mulNumber(total, factor)",
-        "total = BigNum.floor(BigNum.mulNumber(BigNum.floor(total), factor))",
+        "factor = BigNum.mulNumber(factor, modifier.multiplier)",
+        "factor = BigNum.mulNumber(factor, modifier.multiplier)\n\t\t\t\t\ttotal = BigNum.floor(BigNum.mul(BigNum.floor(total), BigNum.fromNumber(1 + (modifier.percent or 0))))",
     ),
     "no minimum tap damage": (
         "return BigNum.max(BigNum.floor(total), minimum)",
@@ -102,7 +103,7 @@ def main() -> int:
             code, out = run(bundle("worktree", unit_entry()), mode, workdir, library)
             verdict = re.findall(r"\[Tests\] (ALL PASSED \(\d+ tests\)|\d+ FAILED, \d+ passed)", out)
             suites = re.findall(r"^\[Tests\] (\w+Tests): (\d+) passed, 0 failed$", out, re.M)
-            record(code == 0 and verdict[-1:] == ["ALL PASSED (79 tests)"] and len(suites) == 8,
+            record(code == 0 and verdict[-1:] == ["ALL PASSED (82 tests)"] and len(suites) == 8,
                    f"[{mode}] TestRunner: {verdict[-1] if verdict else 'no verdict'} in {len(suites)} suites "
                    f"({', '.join(f'{s} {c}' for s, c in suites)})", out[-800:])
             code, out = run(bundle("worktree", probes_entry), mode, workdir, library)
@@ -117,6 +118,25 @@ def main() -> int:
         record(code == 0 and summary[-1:] != [] and summary[-1][1] == "0",
                f"StatService integration probes: {summary[-1][0] + ' passed, ' + summary[-1][1] + ' failed' if summary else 'no summary'}",
                out[-800:])
+
+        # 2b. Negative control: the same probes against the previous PR head (2771db1), which left a failed
+        #     modifier installed and charged for an upgrade whose tap damage was not applied.
+        code, out = run(bundle(PREVIOUS, (HERE / "statservice_probes.luau").read_text()), "gradual", workdir, library)
+        old_fails = [line.strip()[5:] for line in out.splitlines() if line.startswith("  FAIL")]
+        record(code != 0 and len(old_fails) >= 2,
+               f"control: the probes fail on the previous PR head {PREVIOUS[:7]} ({len(old_fails)} failures, the reported defect)",
+               out[-600:])
+        for line in old_fails:
+            print(f"      {PREVIOUS[:7]}: FAIL {line[:150]}")
+
+        # 2c. Static check: the purchase path stays non-yielding.
+        yielding = re.compile(r"task\.wait|task\.delay|task\.defer|\bwait\(|\bdelay\(|coroutine\.yield|:Wait\(|Async\(")
+        hits = []
+        for rel in ("src/ServerScriptService/StatService.luau", "src/ServerScriptService/StatRules.luau", "src/ServerScriptService/UpgradeService.luau"):
+            for number, line in enumerate((REPO / rel).read_text().splitlines(), 1):
+                if yielding.search(line):
+                    hits.append(f"{rel}:{number}")
+        record(not hits, "StatService, StatRules and UpgradeService contain no yielding call (purchase stays one non-yielding step)", ", ".join(hits))
 
         # 3. Client-traffic differential: main vs working tree.
         scenario = (HERE / "client_traffic_scenario.luau").read_text()

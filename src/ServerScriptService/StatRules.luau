@@ -15,6 +15,9 @@
 
 		floor((base + sum of flat bonuses) * (1 + sum of percentage bonuses) * product of multipliers)
 
+	The percentage factor and the multipliers are combined into one factor first, and the sum
+	is multiplied by it once, so an intermediate step can never overflow when the final result
+	fits (a x2 and a x0.5 cancel out at any magnitude).
 	It is rounded down ONCE, at the end, and is never below the stat's minimum (tap damage 1,
 	because CombatService only accepts a positive tap damage). Modifiers are combined in a
 	fixed order (source order above, then modifier id), so the result never depends on the
@@ -100,6 +103,22 @@ function StatRules.newSheet(): Sheet
 	return { base = {}, modifiers = {} }
 end
 
+-- An independent copy of a sheet (modifier records are frozen, so they are shared). StatService changes a copy and keeps it only if it can be applied.
+function StatRules.copySheet(sheet: Sheet): Sheet
+	local copy = StatRules.newSheet()
+	for statId, value in sheet.base do
+		copy.base[statId] = value
+	end
+	for statId, bySource in sheet.modifiers do
+		local sources: { [string]: { [string]: Modifier } } = {}
+		for source, entries in bySource do
+			sources[source] = table.clone(entries)
+		end
+		copy.modifiers[statId] = sources
+	end
+	return copy
+end
+
 -- Sets a stat's base value (for tap damage: the Tap Damage upgrade's value). False if invalid.
 function StatRules.setBase(sheet: Sheet, statId: string, value: BigNum): boolean
 	if not isStat(statId) or not BigNum.isValid(value) then
@@ -181,7 +200,7 @@ function StatRules.combine(sheet: Sheet, statId: string): BigNum?
 
 	local total = base
 	local percentTotal = BigNum.zero
-	local multipliers: { number } = {}
+	local factor = BigNum.one
 	for _, source in StatRules.Sources do
 		local entries = bySource[source]
 		if entries ~= nil then
@@ -199,16 +218,16 @@ function StatRules.combine(sheet: Sheet, statId: string): BigNum?
 					percentTotal = BigNum.add(percentTotal, BigNum.fromNumber(modifier.percent))
 				end
 				if modifier.multiplier ~= nil and modifier.multiplier ~= 1 then
-					table.insert(multipliers, modifier.multiplier)
+					factor = BigNum.mulNumber(factor, modifier.multiplier)
 				end
 			end
 		end
 	end
 	if not BigNum.isZero(percentTotal) then
-		total = BigNum.mul(total, BigNum.add(BigNum.one, percentTotal))
+		factor = BigNum.mul(BigNum.add(BigNum.one, percentTotal), factor)
 	end
-	for _, factor in multipliers do
-		total = BigNum.mulNumber(total, factor)
+	if not BigNum.eq(factor, BigNum.one) then
+		total = BigNum.mul(total, factor)
 	end
 	return BigNum.max(BigNum.floor(total), minimum)
 end
