@@ -4,7 +4,7 @@
 	Location: ServerScriptService > PlayerSessionService (ModuleScript)
 
 	The single place that controls each player's lifecycle across services:
-	  join  -> CurrencyService, CombatService, UpgradeService add the player (in that order)
+	  join  -> CurrencyService, CombatService, StatService, UpgradeService add the player (in that order)
 	  ready -> the client's ClientReady triggers one full sync from every service
 	  leave -> the services remove the player in reverse order
 
@@ -24,6 +24,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
 local CombatService = require(ServerScriptService:WaitForChild("CombatService"))
 local CurrencyService = require(ServerScriptService:WaitForChild("CurrencyService"))
+local StatService = require(ServerScriptService:WaitForChild("StatService"))
 local UpgradeService = require(ServerScriptService:WaitForChild("UpgradeService"))
 
 type Session = {
@@ -64,6 +65,7 @@ local function removePlayer(player: Player)
 	end
 	sessions[player] = nil
 	UpgradeService.RemovePlayer(player)
+	StatService.RemovePlayer(player)
 	CombatService.RemovePlayer(player)
 	CurrencyService.RemovePlayer(player)
 end
@@ -82,6 +84,7 @@ local function addPlayer(player: Player)
 	local success, problem = pcall(function()
 		CurrencyService.AddPlayer(player)
 		CombatService.AddPlayer(player)
+		StatService.AddPlayer(player) -- needs CombatService; UpgradeService then reports the starting base tap damage
 		UpgradeService.AddPlayer(player)
 	end)
 	if not success then
