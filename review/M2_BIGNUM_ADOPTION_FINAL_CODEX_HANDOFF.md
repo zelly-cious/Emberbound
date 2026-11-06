@@ -25,4 +25,6 @@ Report:
 - confirmed defects, Studio-dependent risks and optional improvements, each with severity, evidence and the smallest fix;
 - what you executed versus what you only read.
 
-End with **PASS**, **PASS WITH RISKS** or **FAIL** for the adoption revision. Roblox Studio verification of the installer v1.2.0 package path is still outstanding (adoption report §2.3); do not fabricate it. Do not approve merging, mark Milestone 2 complete, or start Milestone 2.1.
+Use the [Round 4 release QA addendum](M2_STUDIO_QA_ROUND4_RELEASE_RESULTS.md) for the owner's Studio results from installer v1.2.0, including post-reopen parity and the 67-test run. Report the unrecorded checks separately from the observed results (adoption report §2.3).
+
+End with **PASS**, **PASS WITH RISKS** or **FAIL** for the adoption revision. Merge and milestone approval are separate producer decisions.

@@ -29,7 +29,7 @@ Release-package files changed:
 | Installer payload | `tools/m2/InstallM2.lua`, `tools/m2/INSTALLER_MANIFEST.txt` | Regenerated as **v1.2.0**: 240,675 bytes, SHA-256 `b12fa7023f25a93d2e2a80aef0042c0cf962d81a7aef84dd4ca1fd06873623d4`. Only the header comment, `INSTALLER_VERSION`, `FROZEN_COMMIT` and the embedded FILES[1] (`BigNum`) and FILES[12] (`BigNumTests`) differ from v1.1.0. **The installer logic is byte-identical** (diffed). |
 | Installer generator | `tools/m2/generate_installer.py`, `InstallM2.template.lua` | Source pin `9a988c9`, manifest round 4, version 1.2.0. Round 4 is recorded *after* the source commit, so the manifest is read from `HEAD`. The generator now requires the source commit to be an ancestor of `HEAD`, and the round 4 heading to name it and be marked current. The template header comment names round 4. |
 | Installer tests | `tools/m2/tests/run_tests.py`, `installer_tests.lua` | Source identity against round 4. Repository-scope checks re-scoped for the adoption: `src/` unchanged from `9a988c9`, rounds 1–3 hash lines preserved, round 4 the only current round, only release-package files changed. One damage test hard-coded the frozen BigNum Adler-32; it now reads FILES[1]'s value, making the same mutation with any payload. |
-| Installer docs | `tools/m2/INSTALL_INSTRUCTIONS.md`, `tools/m2/README.md` | v1.2.0, the new SHA-256 and size. The download link is pinned to `d2e638188efaa2f8fdcd59a9c4b2c35e1763a396`, which holds the v1.2.0 file. The Appendix B link is pinned to the round 4 guide at `5bcc94026dd21d6f261047f2baaa5f62ac73298f`. Tests expect 67. The Studio status says v1.2.0 has not been run in Studio. |
+| Installer docs | `tools/m2/INSTALL_INSTRUCTIONS.md`, `tools/m2/README.md` | v1.2.0, the new SHA-256 and size. The download link is pinned to `d2e638188efaa2f8fdcd59a9c4b2c35e1763a396`, which holds the v1.2.0 file. The Appendix B link is pinned to the round 4 guide at `5bcc94026dd21d6f261047f2baaa5f62ac73298f`. Tests expect 67. The current Studio evidence is in §2.3. |
 | Consistency checker (new) | `tools/m2/tests/check_release_package.py` | Cross-checks every pin and value above. It also runs the guide's **own Appendix B checker text** offline (section 2). |
 | Historical evidence | `review/M2_STUDIO_QA_RESULTS.md` | Imported **byte-identical** from QA commit `ae861bd` (blob `f7024af`) |
 | Historical evidence | `review/DEFECT-001B_REPORT.md` | One dated status row added: Studio QA, Codex native results superseding its FTZ probe count and its "native checks not run", and the adoption. Its original text is unchanged. |
@@ -59,19 +59,18 @@ Kept unchanged as history: rounds 1–3 of the manifest; the frozen commit `e9d8
 | Roblox Studio: 67/67 unit tests; T-2 `1 FAILED, 67 passed`; final P-5 `24 / 24, 6 / 6, 0` `RESULT: PASS` with a checker adapted to exactly the round 4 values for the two files; gameplay, abuse, multiplayer, lag, mobile, large-number and cleanup tests; Script Analysis 0 Errors / 6 Warnings (none in `BigNum` or `BigNumTests`) | `review/M2_STUDIO_QA_RESULTS.md` (QA commit `ae861bd`; historical evidence accepted with risks under Codex's waiver) |
 | Native Luau 0.745 compile of both changed files; strict analysis (old and new solvers); test-body analysis; offline 67/67 in four modes | Codex's independent read-only review, recorded in QA report §2.2 |
 
-### 2.3 Requires Roblox Studio (not executed; not claimed)
+### 2.3 Round 4 release package in Roblox Studio
 
-1. Installer **v1.2.0** in Studio: check mode and install mode on a fresh Baseplate saved to a file. This includes the ~241 KB Command Bar paste and the `PlaceId` guard (M2-R01). No Studio run of any installer version is on record.
-2. The **round 4 Appendix B checker as published in the guide**, run in Studio on a place installed from the round 4 package (P-3/P-5). The owner's adapted checker used the same two values; its full text was not recorded.
-3. T-1 (`ALL PASSED (67 tests)`) on a place installed from the round 4 package. It was observed on the candidate source in the QA place, not through the installer.
-4. Saving and reopening the installed place.
+The project owner used installer **v1.2.0** in Studio and reported **24 / 24 scripts, 6 / 6 remotes, 0 extra scripts** after reopening the installed place, plus **67 / 67 unit tests**. The [release QA addendum](M2_STUDIO_QA_ROUND4_RELEASE_RESULTS.md) records those results and the initial HUD sync Output. It also records the accepted camera Focus exception and the owner's offline checklist attestation separately.
+
+The exact parity checker text and separate observations for installer check mode, the `PlaceId` guard (M2-R01) and undo behavior were unrecorded for this run.
 
 ## 3. Remaining risks
 
 | # | Risk | Severity / status |
 |---|---|---|
 | K-1 | BigNum is **PASS WITH RISKS** (Codex). Under FTZ, native small-value fast paths can still flush subnormal results to 0, and there is a ±1 subnormal step near the normal boundary. Correctness depends on Studio's `tostring`/`tonumber` for subnormals, and DAZ/ARM hosts are unsupported (tests fail loudly). Gameplay values are 0 or at least 1. | Accepted with risks; see `review/DEFECT-001B_REPORT.md` §10 |
-| K-2 | The installer v1.2.0 package path is untested in Studio (2.3). The v1.1.0 Studio risks carry over unchanged: paste size, M2-R01, undo history. | Open; Studio-dependent |
+| K-2 | The owner verified installation and post-reopen parity in Studio (§2.3). Check mode, the `PlaceId` guard and undo behavior have no separate Studio observations on record. | Residual Studio coverage gap |
 | K-3 | Generator trust model: round 4 is read from `HEAD`, not from the source commit. This is mitigated by the ancestor and heading checks, the requirement that the 24 SHA-256 values match the source commit's blobs, and the package checks on rounds 1–3. | Design change; needs reviewer acceptance |
 | K-4 | The historical FTZ probe has an outdated differential expectation. The native run gives 74/75; the translated harness gives 75/75. The probe file `review/offline-harness/probes.luau` was **not** changed (historical tooling). | Known; tooling follow-up if desired |
 | K-5 | M1-2 camera Focus: strict FAIL, producer-accepted Low/nonblocking. `CombatClient` W-5/W-6 `Players.LocalPlayer` optionality warnings: Low/nonblocking (Codex). | Accepted; unchanged by this revision |

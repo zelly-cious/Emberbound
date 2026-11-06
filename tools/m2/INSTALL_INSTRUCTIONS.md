@@ -9,7 +9,7 @@ This guide is for the project owner. It replaces the manual copy-and-paste of 24
 | What it installs | Milestone 2 as adopted in round 4, exactly as at source commit `9a988c9254e07ac50dcf32fe4b55ba975613390d` (`SOURCE_HASHES.txt` round 4: the round 3 release plus the BigNum DEFECT-001/001B correction): 3 folders, 6 RemoteEvents, 24 scripts, and `Players.CharacterAutoLoads = false` |
 | Where it may run | Only a **new Baseplate saved to a file** on your computer, in **Edit mode** |
 | Default behaviour | **Check only.** It changes nothing until you switch on its one setting |
-| Studio status | Tested offline only (plain Lua with a fake Roblox engine). **v1.2.0 has not been run in Roblox Studio.** It differs from v1.1.0 only in the embedded `BigNum` and `BigNumTests` and its version and commit constants. No Studio run of any installer version is on record: the M2 QA place's install method was not recorded. |
+| Studio status | The project owner installed **v1.2.0** in Roblox Studio and reported **24 / 24 scripts, 6 / 6 remotes, 0 extra scripts** after reopening and **67 / 67** unit tests. See the [Round 4 release QA addendum](../../review/M2_STUDIO_QA_ROUND4_RELEASE_RESULTS.md) for evidence and coverage. |
 
 **Never run the installer in a real game place.** It refuses places that already contain scripts, but a fresh Baseplate is the only place it is designed for.
 
@@ -174,7 +174,7 @@ The reviewer then decides how publication should be detected. Installation waits
 
 ## 10. If the Command Bar cannot take the whole file
 
-The installer is one large paste (about 241 KB). This has not been tried in Studio yet. First make sure you actually ran it (section 3: Enter in the one-line Command Bar, **Ctrl+Enter** / **Cmd+Enter** or **Run** in the multi-line one). If nothing happens even then, Studio freezes for a long time, or Output shows a red syntax error such as `unfinished string` or `'end' expected`, the paste probably did not arrive complete.
+The installer is one large paste (about 241 KB). First make sure you actually ran it (section 3: Enter in the one-line Command Bar, **Ctrl+Enter** / **Cmd+Enter** or **Run** in the multi-line one). If nothing happens even then, Studio freezes for a long time, or Output shows a red syntax error such as `unfinished string` or `'end' expected`, the paste probably did not arrive complete.
 
 That is safe: Studio checks the whole text before running any of it, so a cut-off installer cannot change anything. The installer also checks the size and checksum of every embedded script before it does anything. Do **not** split the file into pieces yourself. Report what happened (section 11). A different installation method would need its own review.
 
