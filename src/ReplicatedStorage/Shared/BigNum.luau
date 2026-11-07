@@ -464,6 +464,10 @@ end
 	Reads canonical text (and other plain decimal or "<digits>e<exponent>"
 	forms). Returns nil for anything malformed, negative, non-finite, longer
 	than 64 characters, or with an exponent beyond 2^53 - 1. Never errors.
+	R2-1: the range check uses the decimal digits as written, so an
+	out-of-range decimal is rejected even if it would round into range.
+	A value can still read as nil when rounding carries it past the top of
+	the range (within one rounding step of 10^(2^53)).
 ]]
 function BigNum.parse(text: unknown): BigNum?
 	if typeof(text) ~= "string" then
@@ -493,6 +497,14 @@ function BigNum.parse(text: unknown): BigNum?
 	end
 	if mantissa == 0 then
 		return ZERO
+	end
+	-- R2-1: the written value is at least 10^(leading + exponent), where leading is the decimal
+	-- exponent of its first nonzero digit. Rejecting before any rounding means the text
+	-- "1" + 23 zeros + "e9007199254740969" (= 10^(2^53)) cannot round down into range.
+	local integerDigits = string.match(mantissaText, "^0*(%d*)")
+	local leading = #(integerDigits :: string) - 1
+	if leading > 0 and exponent > MAX_EXPONENT - leading then
+		return nil
 	end
 	-- Anything that fits a double below 2^53 is read in one step, so "1.1e1" is exactly 11.
 	local whole = tonumber(text)

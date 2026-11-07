@@ -572,6 +572,99 @@ table.insert(tests, {
 	end,
 })
 
+table.insert(tests, {
+	name = "parse rejects out-of-range decimals that would round into range (R2-1)",
+	run = function()
+		-- Each of these is at least 10^(2^53), above the largest BigNum; the first one used to
+		-- parse as 9.9999999999999982e9007199254740991 and pass isValid.
+		local outOfRange = {
+			"1" .. string.rep("0", 23) .. "e9007199254740969",
+			"0001" .. string.rep("0", 23) .. "e9007199254740969",
+			"1" .. string.rep("0", 23) .. ".000e9007199254740969",
+			"1" .. string.rep("0", 23) .. "E+9007199254740969",
+			"1" .. string.rep("0", 40) .. "e9007199254740952",
+			"10.0000000000000000001e9007199254740991",
+		}
+		for _, text in outOfRange do
+			local ok, result = pcall(BigNum.parse, text)
+			expectTrue(ok, `parse("{text}") must not raise an error`)
+			expectNil(result, `parse("{text}")`)
+		end
+		-- One decade lower is in range and still accepted, at the top exponent.
+		local inRange = {
+			"1" .. string.rep("0", 22) .. "e9007199254740969",
+			string.rep("9", 23) .. "e9007199254740969",
+			string.rep("0", 24) .. "1e9007199254740991",
+			"0.1e9007199254740991",
+			"10e9007199254740990",
+		}
+		local expectedExponents = { 9007199254740991, 9007199254740991, 9007199254740991, 9007199254740990, 9007199254740991 }
+		for index, text in inRange do
+			local value = BigNum.parse(text)
+			expectTrue(value ~= nil and BigNum.isValid(value), `parse("{text}") is a valid BigNum`)
+			expectEqual((value :: BigNum).e, expectedExponents[index], `exponent of "{text}"`)
+		end
+	end,
+})
+
+table.insert(tests, {
+	name = "parse accepts only decimals below 10^(2^53), at every mantissa length (seeded)",
+	run = function()
+		-- The digits as written decide the range: a value whose first digit sits at decimal
+		-- exponent 2^53 - 1 or below may round past the top and read as nil, but a value at or
+		-- above 10^(2^53) never parses, and anything a full decade below the top always does.
+		local rng = Random.new(2021)
+		for _ = 1, 300 do
+			local digits = rng:NextInteger(1, 40)
+			local text = tostring(rng:NextInteger(1, 9))
+			if rng:NextInteger(1, 3) == 1 then
+				-- Exact powers of ten: 10^23 and others round down as doubles, which is the R2-1 case.
+				text = "1" .. string.rep("0", digits - 1)
+			else
+				for _ = 2, digits do
+					text ..= tostring(rng:NextInteger(0, 9))
+				end
+			end
+			-- The exponent is 2^53 - 1 - leading + top, written as text so that no large number is
+			-- formatted: 2^53 - 1 = 9007199254740991 and every exponent here is 90071992547409xx.
+			local leading = digits - 1
+			local top = rng:NextInteger(-2, 2)
+			local written = `{text}e90071992547409{91 - leading + top}`
+			local value = BigNum.parse(written)
+			if top > 0 then
+				expectNil(value, `parse("{written}") is above the range`)
+			elseif top < 0 then
+				expectTrue(value ~= nil and BigNum.isValid(value), `parse("{written}") is in range`)
+			else
+				expectTrue(value == nil or BigNum.isValid(value), `parse("{written}") is nil or valid`)
+			end
+		end
+	end,
+})
+
+table.insert(tests, {
+	name = "canonical text round-trips at every scale up to the top exponent",
+	run = function()
+		local values = {
+			BigNum.zero,
+			BigNum.one,
+			n(TWO_POW_53 - 1),
+			n(TWO_POW_53),
+			p("1.5e16"),
+			p("7.25e300"),
+			p("3e9007199254740990"),
+			p("9.99e9007199254740991"),
+			p("1e9007199254740991"),
+		}
+		for _, value in values do
+			local text = s(value)
+			local again = BigNum.parse(text)
+			expectTrue(again ~= nil and BigNum.eq(again, value), `"{text}" reads back as the same value`)
+			expectEqual(s(again :: BigNum), text, `"{text}" prints the same after a round trip`)
+		end
+	end,
+})
+
 return {
 	name = "BigNumTests",
 	tests = tests,

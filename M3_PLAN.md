@@ -25,6 +25,7 @@ Implementation starts after the M2 release baseline, M2.1 sequencing and M3 scop
 |---|---|
 | M2 release baseline | **Done:** `main` at `2279623`, the Round 4 package. |
 | M2.1 StatService (decision 1) | **In progress:** draft PR #3, `feature/m2.1-statservice` at `2771db1`.<br>• UpgradeService reports the base tap damage, and StatService combines modifiers by source and applies the result through `CombatService.SetTapDamage`.<br>• Offline: 79/79 tests and 75/75 probes; client traffic is byte-identical to `main`.<br>• Still needed: Studio checks and review. |
+| BigNum parser fix (decision 9, R2-1) | **Done on this branch.** `BigNum.parse` checks the range against the decimal digits as written, before rounding. So `"1"` + 23 zeros + `"e9007199254740969"` (= 10^(2^53)) and every other decimal at or above 10^(2^53) read as nil. A value within one rounding step of the top can also read as nil; that is the safe direction. Offline only:<br>• 3 new BigNum tests, 70/70 in all four floating-point modes;<br>• both R2-1 tests fail against the `main` parser (negative control);<br>• 75/75 probes;<br>• 4,007 canonical and in-range strings parse identically before and after the fix.<br>Studio check: deferred to the final launch QA. |
 | Approved Master Spec, M3 section | **Not in the repository.** The repository cites it but does not contain it; `M2_REQUIREMENTS.md` references only its "M3 items 2, 4, 7". **Needed from the producer** before the scope below is fixed. |
 
 ### Proposed sequencing
