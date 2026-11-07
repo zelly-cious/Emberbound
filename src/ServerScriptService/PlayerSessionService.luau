@@ -4,17 +4,21 @@
 	Location: ServerScriptService > PlayerSessionService (ModuleScript)
 
 	The single place that controls each player's lifecycle across services:
-	  join  -> CurrencyService, CombatService, StatService, UpgradeService add the player (in that order)
+	  join  -> PlayerDataService loads and locks the profile (this yields), then
+	           CurrencyService, CombatService, StatService, UpgradeService add the
+	           player from it (in that order, without yielding)
 	  ready -> the client's ClientReady triggers one full sync from every service
-	  leave -> the services remove the player in reverse order
+	  leave -> the current state is read in one step and handed to
+	           PlayerDataService.Release, then the services remove the player in
+	           reverse order
 
 	Startup order never matters: players already in the game are added on
 	Start(), and a ClientReady that arrives before a player is added (or while
-	a future profile load is running) is remembered and answered when ready.
+	the profile load is running) is remembered and answered when ready.
 
-	Milestone 3 inserts PlayerDataService's profile load here, before the
-	services add the player. HeroService and SummonService later join the same
-	add / sync / remove sequence.
+	A failed load never starts the player on default data: the player is asked
+	to rejoin, and their stored profile is left untouched. HeroService and
+	SummonService later join the same add / sync / remove sequence.
 ]]
 
 local Players = game:GetService("Players")
@@ -24,11 +28,17 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
 local CombatService = require(ServerScriptService:WaitForChild("CombatService"))
 local CurrencyService = require(ServerScriptService:WaitForChild("CurrencyService"))
+local PlayerDataService = require(ServerScriptService:WaitForChild("PlayerDataService"))
+local ProfileSchema = require(ServerScriptService:WaitForChild("ProfileSchema"))
 local StatService = require(ServerScriptService:WaitForChild("StatService"))
 local UpgradeService = require(ServerScriptService:WaitForChild("UpgradeService"))
+local ProgressionConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ProgressionConfig"))
+
+type Profile = ProfileSchema.Profile
 
 type Session = {
 	ready: boolean,
+	failed: boolean, -- the profile could not be loaded; the player has been asked to rejoin
 	syncRequested: boolean,
 	lastSyncAt: number,
 }
@@ -59,10 +69,53 @@ local function syncPlayer(player: Player)
 	CombatService.SyncPlayer(player)
 end
 
+-- The player's current profile, read from the services in one step (no yields), so Gold,
+-- stage and levels are always saved as one consistent set. nil if any service lacks the player.
+local function buildProfile(player: Player): Profile?
+	local session = sessions[player]
+	if session == nil or not session.ready then
+		return nil
+	end
+	local profile = PlayerDataService.CopyMetadata(player)
+	if profile == nil then
+		return nil
+	end
+	for _, currency in ProgressionConfig.Currencies do
+		local balance = CurrencyService.GetBalance(player, currency.id)
+		if balance == nil then
+			return nil
+		end
+		profile.currencies[currency.id] = balance
+	end
+	local stage = CombatService.GetStage(player)
+	if stage == nil then
+		return nil
+	end
+	profile.stage = stage
+	local runHighest, lifetimeHighest = CombatService.GetHighestStages(player)
+	if runHighest == nil or lifetimeHighest == nil then
+		return nil
+	end
+	profile.runHighestStage = runHighest
+	profile.lifetimeHighestStage = lifetimeHighest
+	for _, definition in ProgressionConfig.Upgrades do
+		local level = UpgradeService.GetLevel(player, definition.id)
+		if level == nil then
+			return nil
+		end
+		profile.upgrades[definition.id] = level
+	end
+	return profile
+end
+
 local function removePlayer(player: Player)
-	if sessions[player] == nil then
+	local session = sessions[player]
+	if session == nil then
 		return
 	end
+	-- Read the final state before the services forget the player. A load still in flight
+	-- releases its own lock when it finishes (see addPlayer).
+	PlayerDataService.Release(player, buildProfile(player))
 	sessions[player] = nil
 	UpgradeService.RemovePlayer(player)
 	StatService.RemovePlayer(player)
@@ -76,20 +129,38 @@ local function addPlayer(player: Player)
 	end
 	local session: Session = {
 		ready = false,
+		failed = false,
 		syncRequested = false,
 		lastSyncAt = -math.huge,
 	}
 	sessions[player] = session
 
+	local profile, message = PlayerDataService.Load(player, function(): boolean
+		return sessions[player] == session and player.Parent == Players
+	end)
+	if sessions[player] ~= session or player.Parent ~= Players then
+		PlayerDataService.Release(player, nil) -- left while loading: unlock, keep the stored profile
+		if sessions[player] == session then
+			sessions[player] = nil
+		end
+		return
+	end
+	if profile == nil then
+		session.failed = true
+		player:Kick(message)
+		return
+	end
+	local loaded = profile :: Profile
+
 	local success, problem = pcall(function()
-		CurrencyService.AddPlayer(player)
-		CombatService.AddPlayer(player)
-		StatService.AddPlayer(player) -- needs CombatService; UpgradeService then reports the starting base tap damage
-		UpgradeService.AddPlayer(player)
+		CurrencyService.AddPlayer(player, loaded.currencies)
+		CombatService.AddPlayer(player, loaded.stage, loaded.runHighestStage, loaded.lifetimeHighestStage)
+		StatService.AddPlayer(player) -- needs CombatService; UpgradeService then reports the base tap damage
+		UpgradeService.AddPlayer(player, loaded.upgrades)
 	end)
 	if not success then
 		warn(`[PlayerSessionService] Could not start a session for {player.Name}: {problem}`)
-		removePlayer(player) -- the client's ClientReady retry will try again
+		removePlayer(player) -- not ready, so the stored profile is kept; the client's ClientReady retry tries again
 		return
 	end
 
@@ -106,7 +177,7 @@ local function onClientReady(player: Player)
 		addPlayer(player) -- the handshake arrived before PlayerAdded was processed
 	end
 	local session = sessions[player]
-	if session == nil then
+	if session == nil or session.failed then
 		return
 	end
 
@@ -135,6 +206,7 @@ function PlayerSessionService.Start()
 	end
 	started = true
 
+	PlayerDataService.Start(buildProfile)
 	Players.PlayerAdded:Connect(addPlayer)
 	Players.PlayerRemoving:Connect(removePlayer)
 	clientReadyRemote.OnServerEvent:Connect(function(player: Player)
@@ -142,8 +214,9 @@ function PlayerSessionService.Start()
 	end)
 
 	-- addPlayer is idempotent, so a player caught by both PlayerAdded and this loop is handled once.
+	-- Each load yields, so every player already in the game loads in parallel.
 	for _, player in Players:GetPlayers() do
-		addPlayer(player)
+		task.spawn(addPlayer, player)
 	end
 end
 

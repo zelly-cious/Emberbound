@@ -30,6 +30,7 @@ local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild
 local ProgressionConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ProgressionConfig"))
 local CombatRules = require(ServerScriptService:WaitForChild("CombatRules"))
 local CurrencyService = require(ServerScriptService:WaitForChild("CurrencyService"))
+local PlayerDataService = require(ServerScriptService:WaitForChild("PlayerDataService"))
 
 type BigNum = BigNum.BigNum
 type CombatState = CombatRules.CombatState
@@ -39,6 +40,8 @@ type DamageSource = GameConfig.DamageSource
 
 type PlayerCombatState = {
 	combat: CombatState,
+	runHighestStage: number,
+	lifetimeHighestStage: number,
 	lastTapAt: number, -- os.clock() of the last ACCEPTED tap
 	synced: boolean, -- false until the client's first full sync; no partial updates before that
 }
@@ -117,7 +120,7 @@ end
 ]]
 function CombatService.ApplyDamage(player: Player, amount: BigNum | number, source: DamageSource): boolean
 	local state = playerStates[player]
-	if not state then
+	if not state or not PlayerDataService.CanMutate(player) then
 		return false
 	end
 	local damage = toDamage(amount)
@@ -126,6 +129,7 @@ function CombatService.ApplyDamage(player: Player, amount: BigNum | number, sour
 		return false
 	end
 
+	local clearedStage = state.combat.stage
 	local outcome = CombatRules.resolveHit(state.combat, damage)
 
 	if not outcome.defeated then
@@ -137,6 +141,9 @@ function CombatService.ApplyDamage(player: Player, amount: BigNum | number, sour
 		})
 		return true
 	end
+	state.runHighestStage = math.max(state.runHighestStage, clearedStage)
+	state.lifetimeHighestStage = math.max(state.lifetimeHighestStage, clearedStage)
+	PlayerDataService.MarkDirty(player)
 
 	if not BigNum.isZero(outcome.goldAwarded) then
 		CurrencyService.Grant(player, ProgressionConfig.GoldCurrencyId, outcome.goldAwarded, "EnemyDefeated")
@@ -179,15 +186,22 @@ local function handleTapRequest(player: Player)
 	state.lastTapAt = now
 
 	-- Damage comes from server state, never from the client.
-	CombatService.ApplyDamage(player, state.combat.tapDamage, "Tap")
+	if CombatService.ApplyDamage(player, state.combat.tapDamage, "Tap") then
+		PlayerDataService.RecordActivity(player)
+	end
 end
 
-function CombatService.AddPlayer(player: Player)
+-- stage: the saved stage from the player's profile (nil for the starting stage).
+function CombatService.AddPlayer(player: Player, stage: number?, runHighestStage: number?, lifetimeHighestStage: number?)
 	if playerStates[player] or player.Parent ~= Players then
 		return
 	end
+	local combat = CombatRules.newState(stage)
+	local highest = runHighestStage or math.max(0, combat.stage - 1)
 	playerStates[player] = {
-		combat = CombatRules.newState(),
+		combat = combat,
+		runHighestStage = highest,
+		lifetimeHighestStage = lifetimeHighestStage or highest,
 		lastTapAt = -math.huge,
 		synced = false,
 	}
@@ -203,6 +217,20 @@ end
 
 function CombatService.HasPlayer(player: Player): boolean
 	return playerStates[player] ~= nil
+end
+
+-- The player's current stage, for saving.
+function CombatService.GetStage(player: Player): number?
+	local state = playerStates[player]
+	return if state then state.combat.stage else nil
+end
+
+function CombatService.GetHighestStages(player: Player): (number?, number?)
+	local state = playerStates[player]
+	if state == nil then
+		return nil, nil
+	end
+	return state.runHighestStage, state.lifetimeHighestStage
 end
 
 -- Sends the full combat state and allows hit/stat updates from now on.

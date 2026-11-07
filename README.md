@@ -1,4 +1,10 @@
-# EMBERBOUND — MILESTONE 2 CODEX REVIEW HANDOFF
+# Emberbound
+
+M2 is merged; M2.1 is draft PR #3. M3 saving/recovery foundations are implemented on `feature/m3-planning`, with review and the private Studio persistence checkpoint pending. Current planning: [ROADMAP.md](ROADMAP.md), [M3_PLAN.md](M3_PLAN.md). Current test build: [M3 Studio installer and instructions](tools/m3/README.md), pinned to `23785544f846817c5d722f69d5e81b11348df46f`. Offline evidence: [M3 results](review/m3/M3_IMPLEMENTATION_RESULTS.md).
+
+The following Milestone 2 review handoff is historical. Its installer, manifest round and QA results describe the frozen M2 release. Earlier QA does not cover the M3 candidate.
+
+## Historical Milestone 2 review handoff
 
 **Purpose:** independent, read-only review of the Claude-generated Milestone 2 implementation (Tap Upgrades, Economy & BigNum) before Milestone 2.1 and Milestone 3. Round 1 (audit of `024cd68`) returned FAIL with findings F1–F6; round 2 is the re-review of their corrections.
 

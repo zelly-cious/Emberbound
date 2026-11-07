@@ -249,14 +249,14 @@ Shim.game.GetService = function(self, name)
 	end
 	return realGetService(self, name)
 end
--- _G explicitly: the fake engine has its own local named Instance in the same chunk.
-_G.Instance = {
+-- Set the module loader's global environment, including on the native CLI's sandbox.
+Shim.setGlobal("Instance", {
 	new = function(className)
 		assert(className == "BindableFunction", "the bridge creates only a BindableFunction")
 		bridgeInstance = { ClassName = className }
 		return bridgeInstance
 	end,
-}
+})
 Shim.addSource("ServerScriptService/EmberboundStatQA", "Script", SOURCES["QA/EmberboundStatQA"])
 Shim.runScript("ServerScriptService/EmberboundStatQA")
 Shim.game.GetService = realGetService

@@ -12,6 +12,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BigNum = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("BigNum"))
+local ProgressionConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ProgressionConfig"))
 
 type BigNum = BigNum.BigNum
 
@@ -25,7 +26,7 @@ local Wallet = {}
 function Wallet.new(startingBalances: { [string]: BigNum }): Wallet
 	local balances: { [string]: BigNum } = {}
 	for currencyId, amount in startingBalances do
-		assert(BigNum.isValid(amount), `Wallet.new: invalid starting balance for {currencyId}`)
+		assert(ProgressionConfig.IsCurrencyValue(currencyId, amount), `Wallet.new: invalid starting balance for {currencyId}`)
 		balances[currencyId] = amount
 	end
 	return { balances = balances }
@@ -47,17 +48,21 @@ end
 -- Adds a positive amount. Returns false, changing nothing, for an unknown currency or an invalid or zero amount.
 function Wallet.grant(wallet: Wallet, currencyId: string, amount: BigNum): boolean
 	local balance = wallet.balances[currencyId]
-	if balance == nil or not BigNum.isValid(amount) or BigNum.isZero(amount) then
+	if balance == nil or not ProgressionConfig.IsCurrencyValue(currencyId, amount) or BigNum.isZero(amount) then
 		return false
 	end
-	wallet.balances[currencyId] = BigNum.add(balance, amount)
+	local ok, updated = pcall(BigNum.add, balance, amount)
+	if not ok or not ProgressionConfig.IsCurrencyValue(currencyId, updated) then
+		return false
+	end
+	wallet.balances[currencyId] = updated
 	return true
 end
 
 -- Removes the whole amount only if it is available. Returns false, changing nothing, otherwise.
 function Wallet.trySpend(wallet: Wallet, currencyId: string, amount: BigNum): boolean
 	local balance = wallet.balances[currencyId]
-	if balance == nil or not BigNum.isValid(amount) or BigNum.isZero(amount) then
+	if balance == nil or not ProgressionConfig.IsCurrencyValue(currencyId, amount) or BigNum.isZero(amount) then
 		return false
 	end
 	local remaining = BigNum.trySub(balance, amount)

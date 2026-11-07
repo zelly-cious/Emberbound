@@ -47,9 +47,10 @@ function CombatRules.spawnEnemy(state: CombatState)
 end
 
 -- Milestone 1 starting state: stage 1, tap damage 1, a full-HP Forest Slime.
-function CombatRules.newState(): CombatState
+-- A saved stage (Milestone 3, already validated by ProfileSchema) starts there with a fresh enemy.
+function CombatRules.newState(stage: number?): CombatState
 	local state: CombatState = {
-		stage = GameConfig.Combat.StartingStage,
+		stage = stage or GameConfig.Combat.StartingStage,
 		tapDamage = BigNum.fromNumber(GameConfig.Combat.StartingTapDamage),
 		enemyId = 0,
 		enemyName = "",

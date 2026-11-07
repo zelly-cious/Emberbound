@@ -166,6 +166,26 @@ local tests: { TestKit.TestCase } = {
 			expectEqual(snapshot.TestTickets, "1.5e400")
 		end,
 	},
+	{
+		name = "whole-number wallets enforce amounts and caps atomically",
+		run = function()
+			local wallet = Wallet.new({ Gems = n(10), Crowns = n(9007199254740991) })
+			expectTrue(not Wallet.grant(wallet, "Gems", n(0.5)), "fractional grant rejected")
+			expectTrue(not Wallet.trySpend(wallet, "Gems", n(0.5)), "fractional spend rejected")
+			expectTrue(not Wallet.grant(wallet, "Crowns", n(1)), "cap protected")
+			expectEqual(balanceText(wallet, "Gems"), "10")
+			expectEqual(balanceText(wallet, "Crowns"), "9007199254740991")
+		end,
+	},
+	{
+		name = "overflowing grants return false with the previous balance retained",
+		run = function()
+			local amount = BigNum.parse("9e9007199254740991") :: BigNum
+			local wallet = Wallet.new({ [GOLD] = amount })
+			expectTrue(not Wallet.grant(wallet, GOLD, amount), "overflow rejected")
+			expectEqual(balanceText(wallet, GOLD), "9e9007199254740991")
+		end,
+	},
 }
 
 return {
