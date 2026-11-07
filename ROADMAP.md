@@ -37,7 +37,7 @@ Planning draft prepared 7 Nov 2026 from the producer's milestone outline and [re
 - Save the server-owned `lifetimeHighestStage` and `runHighestStage` records alongside the current `stage`. Both records measure the highest cleared stage. Fresh profiles start with `stage = 1` and both records at 0. Update both maxima when the server confirms an enemy defeat, in the same consistent profile snapshot as progression and Gold.
 - M6.1 uses lifetime progress plus durable, stable milestone claim IDs for one-time stage rewards. M7 uses lifetime progress with the trading quest and active-time conditions. M4.1 uses this-run progress for its prestige eligibility/reward calculation.
 - On prestige, retain the lifetime record and claim history, reset `runHighestStage` to 0 and restart current `stage` at 1. A new run gets a new persisted run identity.
-- Advance the profile version when introducing these fields. For the existing sequential v1 baseline, migrate both highest-cleared records from `max(0, stage - 1)`, preserve any established valid maxima, and initialize prestige count to 0 and its multiplier to 1. Retain existing wallets, claims and recovery records.
+- Advance the profile version when introducing these fields. For the existing sequential v1 baseline, migrate both highest-cleared records from `max(0, stage - 1)`, preserve any established valid maxima, and initialize prestige count to 0 and its stored multiplier to `"1"`. Retain existing wallets, claims and recovery records.
 
 ### Prestige contract before M4 tuning
 
@@ -58,11 +58,26 @@ nextMultiplier = currentMultiplier + gain(runHighestStage)
 
 Apply the resulting multiplier once to tap damage and once to automatic hero damage through StatService's modifier pipeline. Gold, Gem and Crown rewards use their own configured rules.
 
-Save the multiplier in canonical BigNum text and validate it as a finite value of at least 1 when loading. M4/M4.1 must support its validated BigNum factor through the existing stat pipeline. It belongs in the prestige record and has no exchange or spending operation in the currency wallets.
+Save `prestige.multiplier` as a canonical BigNum string, defaulting to `"1"`, and validate it as a finite value of at least 1 when loading. Save the transaction's `calculatedGain` as a canonical BigNum string too. M4/M4.1 must support its validated BigNum factor through the existing stat pipeline. It belongs in the prestige record and has no exchange or spending operation in the currency wallets.
 
 Stage-milestone Gem claim IDs are stable across runs and survive prestige. Trading progression uses lifetime progress, the unlock quest and active time. Those conditions survive the reset.
 
-M3 owns the schema, migration and reset/recovery contract. Establish eligibility and gain parameters before M4 economy tuning. M4.1 owns the working reset mechanic and UI before M5/M6 balancing. M10 later extends this working system.
+The durable prestige operation snapshots `calculatedGain`, `gainCurveVersion`, the completed run identity and its highest cleared stage before applying the reset. Recovery applies that recorded amount under the same operation ID. A later gain-curve update changes the calculation for new operations. Pending operations keep their saved gains through recovery and journal retention.
+
+### Prestige gain calibration
+
+The current combat configuration uses `floor(10 * 1.18^(stage - 1))` for enemy HP. For a stored multiplier `M` and a proposed gain `G(s)`, measure the relative damage improvement and its approximate HP-stage equivalent at fixed other stats:
+
+```text
+relativeBoost = (M + G(s)) / M
+equivalentStages = log(relativeBoost) / log(1.18)
+```
+
+Before M4 tuning, record an early/mid/late balance table with run peak, existing multiplier, calculated gain, relative boost and equivalent stages. Set explicit targets for run duration, time to return to the previous peak and progress beyond it. Model the reset of Gold, tap upgrades and hero levels with the retained equipment and permanent bonuses. Use the actual HP function for numerical checks and update the model if the enemy curve changes.
+
+The gain curve must be evaluated against the intended diminishing returns from repeated same-stage runs and the benefits of reaching new peaks. Record the curve version and initial parameters in M3, tune with M4's hero/economy progression and validate the working loop in M4.1. These balancing targets and numerical values remain to be set.
+
+M3 owns the schema, migration and reset/recovery contract. M4.1 owns the working reset mechanic and UI before M5/M6 balancing. M10 later extends this working system.
 
 ### M6 and M8 policy requirements
 

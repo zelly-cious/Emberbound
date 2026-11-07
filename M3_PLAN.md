@@ -95,12 +95,19 @@ These keep launch work moving. Each is a small, contained change if overridden.
 | Current `stage` | Existing current combat stage, starting at 1. |
 | `lifetimeHighestStage` | Highest stage cleared under server authority. It is retained through prestige and gates stage-milestone Gem rewards and the trading stage requirement. |
 | `runHighestStage` | Highest stage cleared in the current run. It drives prestige eligibility and gain and resets to 0 on prestige. |
-| Prestige record | Count, persisted run identity and a permanent damage multiplier starting at 1x, stored as canonical BigNum text and validated at load. |
+| Prestige record | Count, persisted run identity and `prestige.multiplier` as a canonical BigNum string, starting at `"1"` and validated as at least 1 at load. |
 | Reward rule | `nextMultiplier = currentMultiplier + gain(runHighestStage)`. Set the numeric threshold/gain curve before M4 tuning. Apply once to tap damage and automatic hero damage through StatService. |
 | Hero levels | Reset to each hero's configured starting level. Retain ownership, identity, rarity and duplicate progress. |
-| Durable reset | Store the run being completed and the calculated gain with the operation. Update reset fields and the prestige reward together under recovery, so retry grants once. |
+| Durable reset | Snapshot `calculatedGain` as a canonical BigNum string, `gainCurveVersion`, completed run identity and its highest cleared stage in the operation before applying it. Recovery uses the recorded gain under the same operation ID. Retain pending operations until recovery finishes. |
 | Milestone claims | Stable stage-milestone claim IDs survive prestige. Lifetime highest-stage eligibility is paired with those records, so a repeated run grants each milestone once per player. |
-| Migration | Advance the schema version. Existing sequential v1 profiles seed cleared-stage maxima from `max(0, stage - 1)`, retain valid existing maxima/claims, and receive default prestige count 0 and multiplier 1. |
+| Migration | Advance the schema version. Existing sequential v1 profiles seed cleared-stage maxima from `max(0, stage - 1)`, retain valid existing maxima/claims, and receive default prestige count 0 and stored multiplier `"1"`. |
 
 Offline regressions must cover monotonic server-owned stage maxima, v1 migration, malformed field rejection, stable milestone claims across a reset, retained trading progress and interrupted/replayed reset operations. M4.1 adds regressions for hero-level resets and applying the multiplier once.
 
+
+### Saved-gain recovery and balance acceptance
+
+- Validate stored multiplier/gain encodings under the BigNum contract. Cover round trips beyond ordinary number range, such as a multiplier of `"1e400"`, and reject malformed or invalid values.
+- Add a regression that prepares a gain under curve version A, changes the configured curve to B, then interrupts and recovers the operation. Use the saved amount once. An illustrative fixture starts at `"10"` with saved gain `"5"` and recovers to `"15"`, even when curve B would calculate `"500"`. Replaying recovery preserves that completed result and the single reset/count increment.
+- Use the actual enemy HP function, currently `floor(10 * 1.18^(stage - 1))`, for gain calibration. At fixed other stats, record `relativeBoost = (M + G(s)) / M` and the approximate stage equivalent `log(relativeBoost) / log(1.18)`.
+- Record early/mid/late balance samples and targets for run duration, return to the old peak and progress beyond it. The model includes the hero-level, tap-upgrade and Gold reset. M3 establishes/version-controls the initial curve and recovery payload, M4 tunes it with hero/economy progression, and M4.1 validates the loop before M5/M6 balancing.
