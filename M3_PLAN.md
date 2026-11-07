@@ -1,6 +1,6 @@
 # Emberbound Milestone 3 kickoff
 
-Planning baseline is the released Milestone 2: Round 4 with its [Studio QA addendum](review/M2_STUDIO_QA_ROUND4_RELEASE_RESULTS.md), merged into `main` at `227962341facb26ddc6eb074ca7e49018dfc7acb` (PR #1). This branch is merged with that `main`, so its diff contains only M3 planning. Keep it aligned before opening an implementation PR.
+Implementation baseline is the released Milestone 2 Round 4 at `227962341facb26ddc6eb074ca7e49018dfc7acb` (PR #1), with its [Studio QA addendum](review/M2_STUDIO_QA_ROUND4_RELEASE_RESULTS.md). This branch now contains M2.1 integration and the first M3 implementation. The producer's supplied milestone outline is captured in the proposed [roadmap](ROADMAP.md), including feature ownership and launch sequencing.
 
 ## Recorded requirements and dependencies
 
@@ -17,17 +17,17 @@ Planning baseline is the released Milestone 2: Round 4 with its [Studio QA adden
 3. Add the active-seconds counter at the approved server action entry points. Cover player isolation, idle and disconnect behavior, and rejected or replayed requests. Keep the existing server-authoritative combat and Gold invariants in the acceptance tests.
 4. For the first persistence slice, test load failures, overlapping sessions, save retries and shutdown. Verify that a load failure cannot replace an existing profile with defaults. Use an isolated Studio test environment for persistence verification.
 
-Implementation starts after the M2 release baseline, M2.1 sequencing and M3 scope are confirmed.
+M3 owns saving, versioned profiles, session handling, currency wallets, interrupted-transaction recovery and migrations. Decision 7 adds the active-play counter. Complete these foundations in dependency order under the [roadmap](ROADMAP.md).
 
 ## Kickoff status (7 Nov 2026)
 
 | Item | Status |
 |---|---|
 | M2 release baseline | **Done:** `main` at `2279623`, the Round 4 package. |
-| M2.1 StatService (decision 1) | **In progress:** draft PR #3, `feature/m2.1-statservice` at `2771db1`.<br>• UpgradeService reports the base tap damage, and StatService combines modifiers by source and applies the result through `CombatService.SetTapDamage`.<br>• Offline: 79/79 tests and 75/75 probes; client traffic is byte-identical to `main`.<br>• Still needed: Studio checks and review. |
+| M2.1 StatService (decision 1) | **Draft PR #3** at `39a5357`, with source identical to reviewed `9a3ad1e`.<br>• Offline: 14/14 checks, 82 tests, 75 historical probes and 43 integration probes.<br>• Studio checks 1-4 are recorded as producer-attested passes in `review/m2.1/M2_1_STUDIO_QA_RESULTS.md`.<br>• Helper cleanup is scheduled for final release parity. Packaging and merge review remain. |
 | BigNum parser fix (decision 9, R2-1) | **Done on this branch.** `BigNum.parse` checks the range against the decimal digits as written, before rounding. So `"1"` + 23 zeros + `"e9007199254740969"` (= 10^(2^53)) and every other decimal at or above 10^(2^53) read as nil. A value within one rounding step of the top can also read as nil; that is the safe direction. Offline only:<br>• 3 new BigNum tests, 70/70 in all four floating-point modes;<br>• both R2-1 tests fail against the `main` parser (negative control);<br>• 75/75 probes;<br>• 4,007 canonical and in-range strings parse identically before and after the fix.<br>Studio check: deferred to the final launch QA. |
-| First persistence slice (plan steps 2 and 4) | **Done on this branch (offline), built on M2.1.**<br>• New modules: `ProfileSchema` (version 1 profile), `ProfileStore` (session lock, retries) and `PlayerDataService` (DataStore, autosave, shutdown). Hooks added in the Currency, Combat, Upgrade and PlayerSession services.<br>• Saved: Gold as canonical BigNum text, stage, upgrade levels and `activeSeconds`. Tap damage is re-derived through StatService, and a fresh enemy spawns on load.<br>• Offline: `review/m3/run_checks.py` 16/16: 106/106 tests in 10 suites, 75/75 historical probes, the M2.1 check set, 36/36 persistence probes, the Studio memory path, unchanged first-time client traffic and 6 mutation controls.<br>• Studio and live checks are deferred to the final launch QA (`review/LAUNCH_QA_DEFERRED.md`). |
-| Approved Master Spec, M3 section | **Not in the repository.** The repository cites it but does not contain it; `M2_REQUIREMENTS.md` references only its "M3 items 2, 4, 7". **Needed from the producer** before the scope below is fixed. |
+| First persistence slice (plan steps 2 and 4) | **Implemented on this branch and under review, built on M2.1.**<br>• New modules: `ProfileSchema` (version 1 profile), `ProfileStore` (session lock, retries) and `PlayerDataService` (DataStore, autosave, shutdown). Hooks added in the Currency, Combat, Upgrade and PlayerSession services.<br>• Saved: Gold as canonical BigNum text, stage, upgrade levels and `activeSeconds`. Tap damage is re-derived through StatService, and a fresh enemy spawns on load.<br>• Offline: `review/m3/run_checks.py` 16/16: 106/106 tests in 10 suites, 75/75 historical probes, the M2.1 check set, 36/36 persistence probes, the Studio memory path, unchanged first-time client traffic and 6 mutation controls.<br>• Studio and live checks are deferred to the final launch QA (`review/LAUNCH_QA_DEFERRED.md`). |
+| Producer roadmap | **Milestone outline received.** [ROADMAP.md](ROADMAP.md) assigns M3 saving/recovery work, M6 Gem income and the event framework, and M2.1 stat calculation. The proposed launch cutoff and expansion sequence are recorded there. |
 
 ### Proposed sequencing
 
@@ -52,16 +52,17 @@ These keep launch work moving. Each is a small, contained change if overridden.
   - An unpublished Studio place uses in-memory saves for that test session.
 - **Decision 3, profile fields and BigNum format:** canonical BigNum text, read back through the fixed `BigNum.parse` (decision 9).
 - **Decision 7, migration:** a `v` field and forward-only steps. A profile with a newer version than the server is rejected with a rejoin message.
-- **Not built, waiting for the producer:**
-  - the transaction log (4);
-  - currency kinds beyond Gold (5);
-  - the active-seconds counter (6). `activeSeconds` is stored and preserved, but stays at 0.
+- **Remaining M3 work:**
+  - the durable transaction log and interrupted-operation recovery (4);
+  - currency kinds and rules for the future Gem/Crown wallets (5);
+  - the server-validated active-seconds counter (6). `activeSeconds` is currently stored but has no counter;
+  - fix the delayed-release/same-server-rejoin race identified in independent review of `a94f020`. A load must safely wait or refuse while the previous final save is still pending.
 
-### Scope decisions to settle before implementation
+### Implementation parameters to record
 
-1. **Full M3 scope:** the Master Spec's M3 item list, and which items are in the first slice.
-2. **Persistence in the first slice:**
-   - whether DataStore saving is included;
+1. **M3 scope:** implement the producer's saving/profile/session/wallet/recovery/migration outline and decision 7's active-play counter, as recorded in ROADMAP.md.
+2. **Persistence defaults and recovery:**
+   - DataStore saving is included in M3;
    - the session-ownership rule for overlapping servers;
    - load-failure behaviour (never overwrite a profile with defaults);
    - autosave interval and shutdown save.
@@ -71,7 +72,7 @@ These keep launch work moving. Each is a small, contained change if overridden.
    - its purpose (audit, or idempotent replay protection);
    - size cap and retention;
    - whether it lives inside the profile or in a separate store.
-5. **Currency kinds and rules:** BigNum versus whole-number kinds, and limits per kind. Whether M3 only defines the kinds; Gem income is M6 and Crowns are M8.
+5. **Currency kinds and rules:** BigNum Gold and bounded whole-number Gems/Crowns. Define validation and limits in M3; Gem income begins in M6 and paid Crown income in M8.
 6. **Active seconds (decision 7):**
    - which server-accepted actions earn time;
    - the idle cap after the last accepted action;
