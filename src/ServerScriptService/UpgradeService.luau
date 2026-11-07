@@ -7,8 +7,12 @@
 
 	A purchase is one non-yielding transaction:
 	  rate limit -> validate request id and upgrade id -> check the level cap ->
-	  spend Gold (all or nothing) -> raise the level -> push the new tap damage
-	  to CombatService -> reply to that player only.
+	  prepare the new base tap damage with StatService (nothing changes yet) ->
+	  spend Gold (all or nothing) -> raise the level -> apply the prepared tap
+	  damage -> reply to that player only.
+	If the new tap damage cannot be applied (StatService cannot combine it, for
+	example a BigNum overflow), the purchase is refused with "EffectFailed"
+	before any Gold moves, so Gold and the level stay unchanged.
 	Prices and values come only from ProgressionConfig; the client sends ids.
 
 	No duplicate charges: each successful spend raises the level by exactly one,
@@ -28,6 +32,7 @@ local ProgressionConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitF
 local CombatService = require(ServerScriptService:WaitForChild("CombatService"))
 local CurrencyService = require(ServerScriptService:WaitForChild("CurrencyService"))
 local RateLimiter = require(ServerScriptService:WaitForChild("RateLimiter"))
+local StatService = require(ServerScriptService:WaitForChild("StatService"))
 
 type UpgradeDefinition = ProgressionConfig.UpgradeDefinition
 type UpgradeView = GameConfig.UpgradeView
@@ -104,13 +109,24 @@ local function reply(player: Player, state: UpgradeState, requestId: number, upg
 	})
 end
 
--- Applies the stat an upgrade controls. Milestone 2 only has Tap Damage.
-local function applyUpgradeEffect(player: Player, definition: UpgradeDefinition, level: number): boolean
+type ApplyEffect = () -> boolean
+
+--[[
+	Prepares the stat an upgrade level sets, without changing anything. Milestone 2 only has
+	Tap Damage, whose value is the base tap damage StatService combines. Returns the function
+	that applies it, or nil if it cannot be applied.
+]]
+local function prepareUpgradeEffect(player: Player, definition: UpgradeDefinition, level: number): ApplyEffect?
 	if definition.id == ProgressionConfig.TapDamageUpgrade.id then
-		return CombatService.SetTapDamage(player, ProgressionConfig.GetUpgradeValue(definition, level))
+		return StatService.PrepareBase(player, StatService.Stats.TapDamage, ProgressionConfig.GetUpgradeValue(definition, level))
 	end
 	warn(`[UpgradeService] No effect is defined for upgrade {definition.id}`)
-	return false
+	return nil
+end
+
+local function applyUpgradeEffect(player: Player, definition: UpgradeDefinition, level: number): boolean
+	local applyEffect = prepareUpgradeEffect(player, definition, level)
+	return applyEffect ~= nil and applyEffect()
 end
 
 local function isValidRequestId(requestId: unknown, lastRequestId: number): boolean
@@ -149,19 +165,33 @@ local function handlePurchaseRequest(player: Player, upgradeId: unknown, request
 	end
 
 	-- Everything from here to the reply runs without yielding: one atomic transaction.
+	local newLevel = level + 1
+	-- The new tap damage is prepared before any Gold moves: if it cannot be applied, nothing is charged.
+	local applyEffect = prepareUpgradeEffect(player, definition, newLevel)
+	if applyEffect == nil then
+		reply(player, state, acceptedRequestId, definition.id, "EffectFailed")
+		return
+	end
 	local cost = ProgressionConfig.GetUpgradeCost(definition, level)
 	if not CurrencyService.TrySpend(player, definition.currencyId, cost, `Upgrade:{definition.id}`) then
 		reply(player, state, acceptedRequestId, definition.id, "InsufficientFunds")
 		return
 	end
 
-	local newLevel = level + 1
 	state.levels[definition.id] = newLevel
-	applyUpgradeEffect(player, definition, newLevel)
+	if not applyEffect() then
+		-- Not reachable while CombatService accepts what StatService prepared (nothing yields in between).
+		-- Undo the purchase instead of charging for an upgrade that did not apply.
+		state.levels[definition.id] = level
+		CurrencyService.Grant(player, definition.currencyId, cost, `Refund:Upgrade:{definition.id}`)
+		warn(`[UpgradeService] {definition.id} level {newLevel} could not be applied for {player.Name}; the purchase was refunded`)
+		reply(player, state, acceptedRequestId, definition.id, "EffectFailed")
+		return
+	end
 	reply(player, state, acceptedRequestId, definition.id, "Ok")
 end
 
--- Requires CombatService.AddPlayer first, so the starting tap damage can be applied.
+-- Requires CombatService.AddPlayer and StatService.AddPlayer first, so the starting tap damage can be applied.
 function UpgradeService.AddPlayer(player: Player)
 	if states[player] or player.Parent ~= Players then
 		return
