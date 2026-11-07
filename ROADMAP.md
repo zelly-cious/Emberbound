@@ -17,13 +17,13 @@ Planning draft prepared 7 Nov 2026 from the producer's milestone outline and [re
 | M1 - Core combat | Fixed camera, tapping, enemy HP, stages, Gold rewards and server-authoritative damage. | Existing QA and review accepted. |
 | M2 - Tap upgrades, economy and BigNum | Gold-funded tap upgrades, upgrade UI, rising costs, server purchase validation and bounded BigNum arithmetic. | Released Round 4 baseline, already merged. |
 | M2.1 - Shared stat calculation | StatService owns base stats and modifiers by source, including upgrades, heroes, equipment and perks. Recompute without overwriting other sources. M5 owns the final balancing rule for stacking. | Reviewed implementation and QA evidence, clean release parity, updated source manifest and installer, then merge review. |
-| M3 - Saving and transaction foundations | Versioned profiles, migrations, session ownership, safe save/load, typed currency wallets, durable transaction journal, operation IDs and interrupted-transaction recovery. Implement active-play tracking and define prestige fields, reset/retention rules and operation recovery before M4 economy tuning. | Preserve progress across retries, rejoin, shutdown and overlapping sessions. Fix the pending-release race. Failed loads preserve the stored record. Recovery applies each operation once. Pass the focused M3 persistence checkpoint before M4. |
-| M4 - Heroes and automatic DPS | Guaranteed starter hero, permanent hero identities, collection, leveling, party slots, derived hero stats and automatic server damage. Tune progression using M3's prestige contract and planned M4.1 rewards. Taps and heroes share combat and reward rules. | Starter grant and hero ownership survive reload. DPS, taps, party changes and purchases preserve player isolation and reward each enemy once. |
-| M4.1 - Basic prestige | A server-validated reset, a permanent prestige reward, the reset UI and StatService integration for the reward. Use the M3 contract below, with eligibility and reward configuration established before M4 tuning. | The reset and reward recover as one operation, replay grants once, retained progress survives, and the starting run is playable after reset/rejoin. Balance later M5/M6 progression around this loop. |
+| M3 - Saving and transaction foundations | Versioned profiles, migrations, session ownership, safe save/load, typed currency wallets, durable transaction journal, operation IDs and interrupted-transaction recovery. Implement active-play tracking, lifetime/run stage records and the prestige multiplier/reset contract before M4 economy tuning. | Preserve progress across retries, rejoin, shutdown and overlapping sessions. Fix the pending-release race. Failed loads preserve the stored record. Recovery applies each operation once. Pass the focused M3 persistence checkpoint before M4. |
+| M4 - Heroes and automatic DPS | Guaranteed starter hero, permanent hero identities, collection, leveling, party slots, derived hero stats and automatic server damage. Hero leveling uses Gold, and prestige resets those levels while retaining ownership, rarity and duplicate progress. Tune progression using M3's prestige multiplier contract and planned M4.1 rewards. Taps and heroes share combat and reward rules. | Starter grant and hero ownership survive reload. DPS, taps, party changes and purchases preserve player isolation and reward each enemy once. |
+| M4.1 - Basic prestige | A server-validated reset, a permanent damage-multiplier increase, the reset UI and StatService integration. Reset run progression and hero levels under the M3 contract below. Establish eligibility and gain configuration before M4 tuning. | The reset and reward recover as one operation, replay grants once, retained progress survives, and the starting run is playable after reset/rejoin. Balance later M5/M6 progression around this loop. |
 | M5 - Equipment and inventory | Gameplay-earned equipment and initial rarity tiers, saved inventory, the three player-wide Weapon/Amulet/Sigil slots, passive bonuses and special effects. Finalize stacking and rounding with StatService. | Drops, equip/unequip and item effects save correctly and preserve other stat sources. |
-| M6.1 - Gem income and reward claims | Gameplay-earned Gems/tickets, starting with stage milestones, then quests, achievements and daily goals. Build reusable quest definitions, daily rollover and reward claim IDs. | Players can earn Gems through gameplay, and each eligible reward is granted once across retries and rejoin. |
+| M6.1 - Gem income and reward claims | Gameplay-earned Gems/tickets, starting with stage milestones, then quests, achievements and daily goals. Lifetime highest-cleared stage gates stage rewards, with persistent milestone claim IDs. Build reusable quest definitions and daily rollover. | Players can earn Gems through gameplay, and each eligible reward is granted once across retries and rejoin. |
 | M6.2 - Free hero summoning | Gem banners, gameplay-earned tickets, numerical rarity odds, pity, duplicate rules, summon UI and permanent hero ownership. | Spending, pity and the hero grant recover together. M6.1 supplies the earnable currency path. |
-| M7 - Hero trading | Trading-unlock quest using M6.1's quest framework, progress eligibility and M3 active time. Hero-for-hero trades, trade history, ownership validation, paid-origin provenance, anti-alt eligibility and recoverable settlement across both profiles. Implement hero-for-Crown trade handling for activation in M8. | Cancellation, disconnect and retry recover to a defined outcome for both players. Begin with trades between players in the same server. |
+| M7 - Hero trading | Trading-unlock quest using M6.1's quest framework, lifetime highest-cleared stage and M3 active time. Hero-for-hero trades, trade history, ownership validation, paid-origin provenance, anti-alt eligibility and recoverable settlement across both profiles. Implement hero-for-Crown trade handling for activation in M8. | Cancellation, disconnect and retry recover to a defined outcome for both players. Begin with trades between players in the same server. |
 | M8 - Premium economy | Robux Developer Products grant Crowns, Crown wallet activation, premium banners with disclosed hard pity, permanent Crown-funded perks and eligible Crown transfers. | Durable receipt handling, policy eligibility, banner odds, paid-origin trading restrictions and purchase/trade recovery are verified. The integrated launch QA checkpoint follows M8. |
 
 ### M3 implementation contract
@@ -34,19 +34,35 @@ Planning draft prepared 7 Nov 2026 from the producer's milestone outline and [re
 - Profile saves carry active seconds. Count only server-accepted activity under an explicit idle rule, and preserve it across rejoin.
 - Keep the first-slice autosave and lock defaults in M3_PLAN.md as reviewable implementation defaults. Ownership and recovery must hold when writes take longer than those nominal intervals.
 - Every later milestone extends the profile through versioned migrations.
+- Save the server-owned `lifetimeHighestStage` and `runHighestStage` records alongside the current `stage`. Both records measure the highest cleared stage. Fresh profiles start with `stage = 1` and both records at 0. Update both maxima when the server confirms an enemy defeat, in the same consistent profile snapshot as progression and Gold.
+- M6.1 uses lifetime progress plus durable, stable milestone claim IDs for one-time stage rewards. M7 uses lifetime progress with the trading quest and active-time conditions. M4.1 uses this-run progress for its prestige eligibility/reward calculation.
+- On prestige, retain the lifetime record and claim history, reset `runHighestStage` to 0 and restart current `stage` at 1. A new run gets a new persisted run identity.
+- Advance the profile version when introducing these fields. For the existing sequential v1 baseline, migrate both highest-cleared records from `max(0, stage - 1)`, preserve any established valid maxima, and initialize prestige count to 0 and its multiplier to 1. Retain existing wallets, claims and recovery records.
 
 ### Prestige contract before M4 tuning
 
-The following reset policy is a product proposal, carried forward from the earlier M10 draft. Record any producer adjustment before M4 tuning.
+The reset/retention rules below incorporate the producer's review of 7 Nov 2026. The selected reward form is a permanent damage multiplier in the prestige record. Numeric eligibility thresholds and gain curves are defined before M4 tuning. Implementation belongs to M3's save/recovery work and M4.1's gameplay work.
 
-| On basic prestige | Proposed v1 rule |
+| On basic prestige | V1 contract |
 |---|---|
-| Reset | Stage returns to 1, run Gold to 0, tap-upgrade level to 1, and the current enemy/combat state is rebuilt. |
-| Retain | Hero ownership and levels, inventory/equipment, party selection, Gems, Crowns, pity, permanent perks, quest/achievement claim records, paid-origin records, active seconds and trading eligibility. |
-| Grant | A permanent prestige reward computed from server-validated progress under explicit eligibility and reward configuration. Apply its stat benefit through StatService. |
-| Persist and recover | A versioned prestige record, reset/run identity and operation ID keep the reset and reward consistent. Retain purchase receipts, trade history and recovery records through reset. |
+| Reset | Current stage returns to 1, run Gold to 0, tap-upgrade level to 1, all owned hero levels to their configured starting level, and `runHighestStage` to 0. Rebuild current enemy/combat state. |
+| Retain | Hero ownership, identity, rarity and duplicate progress, inventory/equipment, party selection, Gems, Crowns, pity, permanent perks, quest/achievement claims, paid-origin records, active seconds, trading eligibility and `lifetimeHighestStage`. |
+| Grant | Add a permanent damage-multiplier increase calculated from the completed run's highest cleared stage, under the configured eligibility and gain curve. |
+| Persist and recover | Save the prestige count, multiplier and run identity. The durable operation records its completed run, input progress and calculated gain so replay/recovery completes the same reset and reward once. Retain receipts, trade history and recovery records. |
 
-M3 owns the schema, migration and reset/recovery contract. Establish eligibility, reward parameters and the reset policy before M4 economy tuning. M4.1 owns the working reset mechanic and UI before M5/M6 balancing. M10 later extends this working system.
+The multiplier starts at 1x. Each eligible prestige adds its calculated gain to the stored multiplier:
+
+```text
+nextMultiplier = currentMultiplier + gain(runHighestStage)
+```
+
+Apply the resulting multiplier once to tap damage and once to automatic hero damage through StatService's modifier pipeline. Gold, Gem and Crown rewards use their own configured rules.
+
+Save the multiplier in canonical BigNum text and validate it as a finite value of at least 1 when loading. M4/M4.1 must support its validated BigNum factor through the existing stat pipeline. It belongs in the prestige record and has no exchange or spending operation in the currency wallets.
+
+Stage-milestone Gem claim IDs are stable across runs and survive prestige. Trading progression uses lifetime progress, the unlock quest and active time. Those conditions survive the reset.
+
+M3 owns the schema, migration and reset/recovery contract. Establish eligibility and gain parameters before M4 economy tuning. M4.1 owns the working reset mechanic and UI before M5/M6 balancing. M10 later extends this working system.
 
 ### M6 and M8 policy requirements
 
@@ -79,7 +95,7 @@ Crown grants from Developer Products use ProcessReceipt and durable handling of 
 
 This is one targeted private Studio session after the M3 implementation and before M4. Use an isolated published test place with working DataStore access.
 
-- Save Gold, stage and upgrade levels, stop/restart or leave/rejoin, and verify the restored values and derived tap damage.
+- Save Gold, current stage, highest-cleared stage records and upgrade levels, stop/restart or leave/rejoin, and verify the restored values and derived tap damage.
 - Verify an autosave and a release write using the real DataStore path.
 - Exercise the pending-save/rejoin fix and a controlled load/save failure with reviewed test hooks. The player must safely wait or receive a retry outcome while stored progress remains protected.
 - Record the exact source revision and a concise result in the QA record. This checkpoint is pending until performed. Keep the broader final-launch checks in [the QA list](review/LAUNCH_QA_DEFERRED.md).

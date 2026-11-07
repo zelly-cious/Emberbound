@@ -17,7 +17,7 @@ Implementation baseline is the released Milestone 2 Round 4 at `227962341facb26d
 3. Add the active-seconds counter at the approved server action entry points. Cover player isolation, idle and disconnect behavior, and rejected or replayed requests. Keep the existing server-authoritative combat and Gold invariants in the acceptance tests.
 4. For the first persistence slice, test load failures, overlapping sessions, save retries and shutdown. Verify that a load failure cannot replace an existing profile with defaults. Use an isolated Studio test environment for persistence verification.
 
-M3 owns saving, versioned profiles, session handling, currency wallets, interrupted-transaction recovery and migrations. Decision 7 adds the active-play counter. Define the prestige record, reset/retention policy and recoverable reset operation during M3. Follow the focused persistence checkpoint before M4 in the [roadmap](ROADMAP.md).
+M3 owns saving, versioned profiles, session handling, currency wallets, interrupted-transaction recovery and migrations. Decision 7 adds the active-play counter. Define the prestige record, lifetime/run highest-cleared stage records and recoverable reset operation during M3. The [roadmap contract](ROADMAP.md#prestige-contract-before-m4-tuning) resets hero levels while retaining ownership, rarity and duplicate progress, and selects a permanent damage multiplier as the reward. Follow the focused persistence checkpoint before M4 in the [roadmap](ROADMAP.md).
 
 ## Kickoff status (7 Nov 2026)
 
@@ -39,7 +39,7 @@ M3 owns saving, versioned profiles, session handling, currency wallets, interrup
    - It is a small, self-contained change, and it clears the gate for any untrusted stored value.
    - It changes `BigNum.luau` and `BigNumTests.luau`, the files adopted in Round 4. So it needs its own reviewed change and a new source manifest round with parity values and installer payload; this can be combined with the M2.1 package round.
    - It touches different files from M2.1, so the two can be reviewed in parallel.
-3. **Complete the profile contract, active-seconds counter, interrupted-transaction recovery and pending-release fix.** Include the prestige schema, reset/retention policy and reset operation contract before M4 tuning.
+3. **Complete the profile contract, active-seconds counter, interrupted-transaction recovery and pending-release fix.** Include the prestige multiplier schema, hero-level reset policy, lifetime/run stage records and reset operation contract before M4 tuning.
 4. **Run one focused persistence checkpoint before M4.** Use the real DataStore path in an isolated private Studio place. Verify save/reload, autosave/release and the controlled rejoin/failure paths. Record the source revision and result once.
 
 ### Defaults adopted for the first slice (7 Nov 2026; the producer may override)
@@ -58,7 +58,7 @@ These keep launch work moving. Each is a small, contained change if overridden.
   - currency kinds and rules for the future Gem/Crown wallets (5);
   - the server-validated active-seconds counter (6). `activeSeconds` is currently stored but has no counter;
   - fix the delayed-release/same-server-rejoin race identified in independent review of `a94f020`. A load must safely wait or refuse while the previous final save is still pending;
-  - define the prestige record, run/reset identity, proposed reset/retention policy and transaction recovery contract in ROADMAP.md before M4 tuning;
+  - implement versioned lifetime/run highest-cleared stage records, prestige count, multiplier and run identity under ROADMAP.md's reset/retention and transaction-recovery contract before M4 tuning;
   - complete the focused M3 persistence checkpoint before starting M4.
 
 ### Implementation parameters to record
@@ -86,5 +86,21 @@ These keep launch work moving. Each is a small, contained change if overridden.
    - forward-only migrations;
    - what happens to a profile with a newer version than the server.
 8. **Studio persistence checkpoint:** use a private published test place with Studio API access and a documented installation path. Test save/reload, autosave/release, delayed-save/rejoin and controlled failure recovery once before M4. See ROADMAP.md and `review/LAUNCH_QA_DEFERRED.md`.
-9. **Prestige contract:** record the proposed reset/retain rules, schema defaults, operation identity and eligibility/reward configuration before M4 tuning. M4.1 implements the mechanic before M5/M6 balancing.
+9. **Prestige contract:** implement the record/migration contract below before M4 tuning. M4.1 implements the mechanic before M5/M6 balancing.
+
+### Prestige and stage schema contract
+
+| Field or rule | Required behavior |
+|---|---|
+| Current `stage` | Existing current combat stage, starting at 1. |
+| `lifetimeHighestStage` | Highest stage cleared under server authority. It is retained through prestige and gates stage-milestone Gem rewards and the trading stage requirement. |
+| `runHighestStage` | Highest stage cleared in the current run. It drives prestige eligibility and gain and resets to 0 on prestige. |
+| Prestige record | Count, persisted run identity and a permanent damage multiplier starting at 1x, stored as canonical BigNum text and validated at load. |
+| Reward rule | `nextMultiplier = currentMultiplier + gain(runHighestStage)`. Set the numeric threshold/gain curve before M4 tuning. Apply once to tap damage and automatic hero damage through StatService. |
+| Hero levels | Reset to each hero's configured starting level. Retain ownership, identity, rarity and duplicate progress. |
+| Durable reset | Store the run being completed and the calculated gain with the operation. Update reset fields and the prestige reward together under recovery, so retry grants once. |
+| Milestone claims | Stable stage-milestone claim IDs survive prestige. Lifetime highest-stage eligibility is paired with those records, so a repeated run grants each milestone once per player. |
+| Migration | Advance the schema version. Existing sequential v1 profiles seed cleared-stage maxima from `max(0, stage - 1)`, retain valid existing maxima/claims, and receive default prestige count 0 and multiplier 1. |
+
+Offline regressions must cover monotonic server-owned stage maxima, v1 migration, malformed field rejection, stable milestone claims across a reset, retained trading progress and interrupted/replayed reset operations. M4.1 adds regressions for hero-level resets and applying the multiplier once.
 

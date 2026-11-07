@@ -19,7 +19,7 @@ Background: *Emberbound — Master Spec V1.0 Architecture Review* (31 Oct 2026) 
 
 ## Roadmap review revisions (7 Nov 2026)
 
-Planning updates following the producer's roadmap review. Original decisions 1-10 retain their review history. The v1 prestige reset/retention policy remains a proposal in ROADMAP.md for product review.
+Planning updates following the producer's roadmap review. Original decisions 1-10 retain their review history. The prestige reset/retention contract is refined in revisions 15-17 below, following the producer's review.
 
 | # | Planning revision | Owner | Implementation consequence |
 |---|---|---|---|
@@ -27,3 +27,11 @@ Planning updates following the producer's roadmap review. Original decisions 1-1
 | 12 | One focused Studio persistence checkpoint precedes M4. | After M3 | Verify the real DataStore save/reload, autosave/release and controlled rejoin/failure paths in a private test place. The broader gameplay checks remain in final launch QA. |
 | 13 | Cross-server leaderboards and Crown leaderboard-event settlement move to M13. | M13, superseding decision 3's M8 schedule | M8 concentrates on premium purchases, eligibility, Crown trades and receipt recovery. M13 owns the UTC schedule, computed scores, frozen standings and durable reward claims. |
 | 14 | Split M6 into earning/rewards and summoning. | M6.1 and M6.2 | M6.1 supplies Gems, quests, dailies and claim IDs. M6.2 supplies free summoning, pity, duplicate rules and permanent ownership. M13 builds the wider event framework. |
+
+### Prestige contract refinement (7 Nov 2026)
+
+| # | Revision | Owner | Implementation consequence |
+|---|---|---|---|
+| 15 | Reset Gold-funded hero levels on prestige while retaining hero ownership, identity, rarity and duplicate progress. Retain the other permanent systems listed in ROADMAP.md. | M3 contract, M4.1 implementation | Restore each owned hero's configured starting level during the recoverable reset. Tune Gold costs and DPS with this policy before M4. |
+| 16 | Persist lifetime and current-run highest-cleared stage records alongside current stage. | M3, consumed by M4.1/M6.1/M7 | Lifetime progress and durable milestone claim IDs gate one-time Gem rewards. Lifetime progress gates trading. This-run progress drives prestige rewards and resets with the run. Migrate existing profiles using the versioned contract in M3_PLAN.md. |
+| 17 | Select a permanent damage multiplier as the v1 prestige reward form. | M3 record, M4.1 reward | Start at 1x and add the configured gain from each eligible completed run. Store it in the prestige record as validated canonical BigNum text and apply it once to tap and hero damage. The reward has no currency-wallet exchange or spend operation. Numeric gain/eligibility parameters are settled before M4 tuning. |
