@@ -182,12 +182,13 @@ local function handleTapRequest(player: Player)
 	CombatService.ApplyDamage(player, state.combat.tapDamage, "Tap")
 end
 
-function CombatService.AddPlayer(player: Player)
+-- stage: the saved stage from the player's profile (nil for the starting stage).
+function CombatService.AddPlayer(player: Player, stage: number?)
 	if playerStates[player] or player.Parent ~= Players then
 		return
 	end
 	playerStates[player] = {
-		combat = CombatRules.newState(),
+		combat = CombatRules.newState(stage),
 		lastTapAt = -math.huge,
 		synced = false,
 	}
@@ -203,6 +204,12 @@ end
 
 function CombatService.HasPlayer(player: Player): boolean
 	return playerStates[player] ~= nil
+end
+
+-- The player's current stage, for saving.
+function CombatService.GetStage(player: Player): number?
+	local state = playerStates[player]
+	return if state then state.combat.stage else nil
 end
 
 -- Sends the full combat state and allows hit/stat updates from now on.

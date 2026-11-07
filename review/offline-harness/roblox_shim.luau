@@ -12,6 +12,12 @@
 	  - os.clock() is a fake clock advanced by the entry script
 	  - Random is a seeded LCG: same API, different sequence than the engine
 	  - the math library is the Luau CLI's, not the Roblox server's
+	  - Milestone 3: task.spawn/defer run the callback at once; task.wait never
+	    yields, it only advances the fake clock; task.delay timers fire from
+	    Shim.advanceClock; os.time follows the fake clock. DataStoreService is an
+	    in-memory fake with injectable failures. HttpService's JSON functions
+	    deep-copy instead of producing text. BindToClose handlers run from
+	    Shim.closeServer. Player:Kick only records the message.
 ]]
 
 local Shim = {}
@@ -148,8 +154,100 @@ addService("ServerScriptService")
 addService("StarterPlayer")
 
 local RunService = addService("RunService")
+local isStudio = true
 function RunService:IsStudio()
-	return true
+	return isStudio
+end
+function Shim.setStudio(value)
+	isStudio = value
+end
+
+-- Milestone 3 persistence ---------------------------------------------------
+
+game.PlaceId = 0
+game.JobId = "shim-job"
+local closeHandlers = {}
+function game:BindToClose(handler)
+	table.insert(closeHandlers, handler)
+end
+
+local function deepCopy(value)
+	if type(value) ~= "table" then
+		return value
+	end
+	local copy = {}
+	for key, item in value do
+		assert(type(key) == "string", "roblox_shim: stored tables may only have string keys")
+		copy[key] = deepCopy(item)
+	end
+	return copy
+end
+
+local HttpService = addService("HttpService")
+local guidCount = 0
+local jsonValues = {}
+function HttpService:GenerateGUID(_wrap)
+	guidCount += 1
+	return string.format("guid-%04d", guidCount)
+end
+function HttpService:JSONEncode(value)
+	table.insert(jsonValues, deepCopy(value))
+	return `json#{#jsonValues}`
+end
+function HttpService:JSONDecode(text)
+	local index = tonumber(string.match(text, "^json#(%d+)$"))
+	assert(index and jsonValues[index] ~= nil, "roblox_shim: JSONDecode of text that JSONEncode did not produce")
+	return deepCopy(jsonValues[index])
+end
+
+local DataStoreService = addService("DataStoreService")
+local dataStores = {}
+local storeFaults = { failNext = 0, calls = 0 }
+local function storeCall(operation)
+	storeFaults.calls += 1
+	if storeFaults.failNext > 0 then
+		storeFaults.failNext -= 1
+		error(`roblox_shim DataStore: injected {operation} failure`, 0)
+	end
+end
+function DataStoreService:GetDataStore(name)
+	if dataStores[name] then
+		return dataStores[name]
+	end
+	local store = { name = name, records = {}, userIds = {} }
+	function store:GetAsync(key)
+		storeCall("GetAsync")
+		return deepCopy(self.records[key])
+	end
+	function store:UpdateAsync(key, transform)
+		storeCall("UpdateAsync")
+		local hook = storeFaults.beforeUpdate
+		if hook then
+			storeFaults.beforeUpdate = nil
+			hook(key)
+		end
+		local new, userIds = transform(deepCopy(self.records[key]), nil)
+		if new ~= nil then
+			self.records[key] = deepCopy(new)
+			self.userIds[key] = userIds
+		end
+		return deepCopy(self.records[key])
+	end
+	dataStores[name] = store
+	return store
+end
+Shim.dataStores = dataStores
+Shim.storeFaults = storeFaults
+Shim.deepCopy = deepCopy
+
+function Shim.closeServer()
+	for _, handler in closeHandlers do
+		local ok, problem = pcall(handler)
+		if not ok then
+			table.insert(handlerErrors, `BindToClose: {problem}`)
+			print(`[handler error] BindToClose: {problem}`)
+		end
+	end
 end
 function RunService:IsServer()
 	return true
@@ -244,7 +342,34 @@ local fakeOs = setmetatable({
 	clock = function()
 		return clockNow
 	end,
+	time = function()
+		return 1700000000 + math.floor(clockNow)
+	end,
 }, { __index = os })
+
+local timers = {}
+local function runTask(label, callback, ...)
+	local ok, problem = pcall(callback, ...)
+	if not ok then
+		table.insert(handlerErrors, `{label}: {problem}`)
+		print(`[handler error] {label}: {problem}`)
+	end
+end
+local fakeTask = {
+	spawn = function(callback, ...)
+		runTask("task.spawn", callback, ...)
+	end,
+	defer = function(callback, ...)
+		runTask("task.defer", callback, ...)
+	end,
+	wait = function(seconds)
+		clockNow += seconds or 0
+		return seconds or 0
+	end,
+	delay = function(seconds, callback, ...)
+		table.insert(timers, { at = clockNow + (seconds or 0), callback = callback, args = { n = select("#", ...), ... } })
+	end,
+}
 
 local baseEnv = getfenv(1)
 local moduleCache = {}
@@ -263,6 +388,7 @@ local function runChunk(source, chunkName, scriptInstance)
 		require = robloxRequire,
 		warn = shimWarn,
 		os = fakeOs,
+		task = fakeTask,
 		Random = Random,
 	}, { __index = baseEnv }))
 	return chunk()
@@ -389,13 +515,41 @@ function Shim.captureScript(path)
 	return lines
 end
 
-function Shim.advanceClock(seconds)
-	clockNow += seconds
+-- The fake os.time() the game code sees.
+function Shim.time()
+	return fakeOs.time()
 end
 
-function Shim.addPlayer(name)
+-- Advances the fake clock and runs every task.delay timer that is now due, earliest first.
+function Shim.advanceClock(seconds)
+	clockNow += seconds
+	while true do
+		local nextIndex = nil
+		for index, timer in timers do
+			if timer.at <= clockNow and (nextIndex == nil or timer.at < timers[nextIndex].at) then
+				nextIndex = index
+			end
+		end
+		if nextIndex == nil then
+			break
+		end
+		local timer = table.remove(timers, nextIndex)
+		runTask("task.delay", timer.callback, table.unpack(timer.args, 1, timer.args.n))
+	end
+end
+
+local nextUserId = 1000
+function Shim.addPlayer(name, userId)
 	local player = newInstance("Player", name, Players)
 	player.Inbox = {}
+	if userId == nil then
+		nextUserId += 1
+		userId = nextUserId
+	end
+	player.UserId = userId
+	function player:Kick(message)
+		self.KickMessage = message or ""
+	end
 	Players.PlayerAdded:Fire(player)
 	return player
 end

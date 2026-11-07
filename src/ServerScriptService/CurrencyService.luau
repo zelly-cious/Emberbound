@@ -11,7 +11,7 @@
 	summon currencies are added there and handled here unchanged. There is no
 	function that converts one currency into another.
 
-	Milestone 3 hook: AddPlayer will accept balances loaded by PlayerDataService.
+	Milestone 3: AddPlayer accepts the balances loaded by PlayerDataService.
 ]]
 
 local Players = game:GetService("Players")
@@ -72,12 +72,22 @@ local function logEconomy(message: string)
 	end
 end
 
-function CurrencyService.AddPlayer(player: Player)
+-- saved: balances from the player's profile, already validated by ProfileSchema (nil for a new player).
+function CurrencyService.AddPlayer(player: Player, saved: { [string]: BigNum }?)
 	if states[player] or player.Parent ~= Players then
 		return
 	end
+	local balances = startingBalances()
+	if saved then
+		for currencyId in balances do
+			local balance = saved[currencyId]
+			if balance ~= nil and BigNum.isValid(balance) then
+				balances[currencyId] = balance
+			end
+		end
+	end
 	states[player] = {
-		wallet = Wallet.new(startingBalances()),
+		wallet = Wallet.new(balances),
 		synced = false,
 	}
 end

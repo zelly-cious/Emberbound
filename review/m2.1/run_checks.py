@@ -35,6 +35,11 @@ STAT_RULES = "ServerScriptService/StatRules"
 results: list[tuple[bool, str]] = []
 
 
+# Shipped TestRunner totals on the M2.1 branch; review/m3/run_checks.py overrides them for later branches.
+EXPECTED_TESTS = 82
+EXPECTED_SUITES = 8
+
+
 def record(ok: bool, name: str, detail: str = "") -> None:
     results.append((ok, name))
     print(("PASS " if ok else "FAIL ") + name + (f"\n      {detail}" if detail and not ok else ""))
@@ -105,7 +110,7 @@ def main() -> int:
             code, out = run(bundle("worktree", unit_entry()), mode, workdir, library)
             verdict = re.findall(r"\[Tests\] (ALL PASSED \(\d+ tests\)|\d+ FAILED, \d+ passed)", out)
             suites = re.findall(r"^\[Tests\] (\w+Tests): (\d+) passed, 0 failed$", out, re.M)
-            record(code == 0 and verdict[-1:] == ["ALL PASSED (82 tests)"] and len(suites) == 8,
+            record(code == 0 and verdict[-1:] == [f"ALL PASSED ({EXPECTED_TESTS} tests)"] and len(suites) == EXPECTED_SUITES,
                    f"[{mode}] TestRunner: {verdict[-1] if verdict else 'no verdict'} in {len(suites)} suites "
                    f"({', '.join(f'{s} {c}' for s, c in suites)})", out[-800:])
             code, out = run(bundle("worktree", probes_entry), mode, workdir, library)
@@ -145,7 +150,8 @@ def main() -> int:
         outputs = {}
         for label, source in (("main", MAIN), ("M2.1", "worktree")):
             code, out = run(bundle(source, scenario), "gradual", workdir, library)
-            lines = [line for line in out.splitlines() if not line.startswith("[Mode]")]
+            # M3 adds one server log line (which save store is in use); it is not client traffic.
+            lines = [line for line in out.splitlines() if not line.startswith(("[Mode]", "[PlayerDataService]"))]
             outputs[label] = (code, lines)
         (code_a, main_lines), (code_b, branch_lines) = outputs["main"], outputs["M2.1"]
         messages = sum(1 for line in main_lines if re.match(r"^\d+ ", line))

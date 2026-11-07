@@ -42,6 +42,8 @@ HARNESS = "review/offline-harness"
 
 
 def git_show(ref: str, path: str) -> str:
+    if ref == "worktree":  # uncommitted harness changes (--harness-ref worktree)
+        return (REPO / path).read_text()
     return subprocess.check_output(["git", "-C", str(REPO), "show", f"{ref}:{path}"]).decode()
 
 

@@ -19,7 +19,7 @@
 	and a request id that is not newer than the last one accepted is ignored, so
 	a replayed request can never charge twice.
 
-	Milestone 3 hook: AddPlayer will accept saved levels from PlayerDataService.
+	Milestone 3: AddPlayer accepts the levels loaded by PlayerDataService.
 ]]
 
 local Players = game:GetService("Players")
@@ -192,13 +192,16 @@ local function handlePurchaseRequest(player: Player, upgradeId: unknown, request
 end
 
 -- Requires CombatService.AddPlayer and StatService.AddPlayer first, so the starting tap damage can be applied.
-function UpgradeService.AddPlayer(player: Player)
+-- saved: levels from the player's profile, already validated by ProfileSchema (nil for a new player).
+function UpgradeService.AddPlayer(player: Player, saved: { [string]: number }?)
 	if states[player] or player.Parent ~= Players then
 		return
 	end
 	local levels: { [string]: number } = {}
 	for _, definition in ProgressionConfig.Upgrades do
-		levels[definition.id] = definition.startingLevel
+		local level = if saved then saved[definition.id] else nil
+		local valid = typeof(level) == "number" and level % 1 == 0 and level >= definition.startingLevel and level <= definition.maxLevel
+		levels[definition.id] = if valid then level :: number else definition.startingLevel
 	end
 	states[player] = {
 		levels = levels,

@@ -26,6 +26,7 @@ Implementation starts after the M2 release baseline, M2.1 sequencing and M3 scop
 | M2 release baseline | **Done:** `main` at `2279623`, the Round 4 package. |
 | M2.1 StatService (decision 1) | **In progress:** draft PR #3, `feature/m2.1-statservice` at `2771db1`.<br>• UpgradeService reports the base tap damage, and StatService combines modifiers by source and applies the result through `CombatService.SetTapDamage`.<br>• Offline: 79/79 tests and 75/75 probes; client traffic is byte-identical to `main`.<br>• Still needed: Studio checks and review. |
 | BigNum parser fix (decision 9, R2-1) | **Done on this branch.** `BigNum.parse` checks the range against the decimal digits as written, before rounding. So `"1"` + 23 zeros + `"e9007199254740969"` (= 10^(2^53)) and every other decimal at or above 10^(2^53) read as nil. A value within one rounding step of the top can also read as nil; that is the safe direction. Offline only:<br>• 3 new BigNum tests, 70/70 in all four floating-point modes;<br>• both R2-1 tests fail against the `main` parser (negative control);<br>• 75/75 probes;<br>• 4,007 canonical and in-range strings parse identically before and after the fix.<br>Studio check: deferred to the final launch QA. |
+| First persistence slice (plan steps 2 and 4) | **Done on this branch (offline), built on M2.1.**<br>• New modules: `ProfileSchema` (version 1 profile), `ProfileStore` (session lock, retries) and `PlayerDataService` (DataStore, autosave, shutdown). Hooks added in the Currency, Combat, Upgrade and PlayerSession services.<br>• Saved: Gold as canonical BigNum text, stage, upgrade levels and `activeSeconds`. Tap damage is re-derived through StatService, and a fresh enemy spawns on load.<br>• Offline: `review/m3/run_checks.py` 16/16: 106/106 tests in 10 suites, 75/75 historical probes, the M2.1 check set, 36/36 persistence probes, the Studio memory path, unchanged first-time client traffic and 6 mutation controls.<br>• Studio and live checks are deferred to the final launch QA (`review/LAUNCH_QA_DEFERRED.md`). |
 | Approved Master Spec, M3 section | **Not in the repository.** The repository cites it but does not contain it; `M2_REQUIREMENTS.md` references only its "M3 items 2, 4, 7". **Needed from the producer** before the scope below is fixed. |
 
 ### Proposed sequencing
@@ -39,6 +40,22 @@ Implementation starts after the M2 release baseline, M2.1 sequencing and M3 scop
    - It changes `BigNum.luau` and `BigNumTests.luau`, the files adopted in Round 4. So it needs its own reviewed change and a new source manifest round with parity values and installer payload; this can be combined with the M2.1 package round.
    - It touches different files from M2.1, so the two can be reviewed in parallel.
 3. **Then the profile contract (slice step 2), the active-seconds counter (step 3) and the first persistence slice (step 4),** within the scope the producer confirms.
+
+### Defaults adopted for the first slice (7 Nov 2026; the producer may override)
+
+These keep launch work moving. Each is a small, contained change if overridden.
+- **Decision 2, persistence:** included.
+  - One DataStore, `EmberboundProfiles`, with key `player_<UserId>`.
+  - Session lock: the lock expires 300 s after the last write. A load waits up to 30 s for another server's lock. A server that loses its lock stops writing and asks the player to rejoin.
+  - Autosave every 60 s. Leaving and shutdown save and release the lock.
+  - A failed load never starts on defaults: the player is asked to rejoin and the record is untouched.
+  - An unpublished Studio place uses in-memory saves for that test session.
+- **Decision 3, profile fields and BigNum format:** canonical BigNum text, read back through the fixed `BigNum.parse` (decision 9).
+- **Decision 7, migration:** a `v` field and forward-only steps. A profile with a newer version than the server is rejected with a rejoin message.
+- **Not built, waiting for the producer:**
+  - the transaction log (4);
+  - currency kinds beyond Gold (5);
+  - the active-seconds counter (6). `activeSeconds` is stored and preserved, but stays at 0.
 
 ### Scope decisions to settle before implementation
 
