@@ -32,8 +32,8 @@ _spec.loader.exec_module(m21)
 run_matrix = m21.run_matrix
 
 MAIN = "227962341facb26ddc6eb074ca7e49018dfc7acb"
-EXPECTED_TESTS = 106
-EXPECTED_SUITES = 10
+EXPECTED_TESTS = 123
+EXPECTED_SUITES = 11
 results: list[bool] = []
 
 STUDIO_ENTRY = r"""
@@ -158,8 +158,8 @@ def main() -> int:
             "the stage is not saved": mutate("src/ServerScriptService/PlayerSessionService.luau",
                 "\tprofile.stage = stage\n", "\tlocal _ = stage\n"),
             "damaged records repaired with defaults": mutate("src/ServerScriptService/ProfileSchema.luau",
-                "\t\t\tif balance == nil then\n\t\t\t\treturn nil, `the {currency.id} balance is invalid`\n\t\t\tend\n\t\t\tprofile.currencies[currency.id] = balance",
-                "\t\t\tif balance ~= nil then\n\t\t\t\tprofile.currencies[currency.id] = balance\n\t\t\tend"),
+                'return nil, "the " .. currency.id .. " balance is invalid"',
+                'return ProfileSchema.new(), nil'),
             "leave does not release the lock": mutate("src/ServerScriptService/PlayerSessionService.luau",
                 "\tPlayerDataService.Release(player, buildProfile(player))\n\tsessions[player] = nil",
                 "\tsessions[player] = nil"),

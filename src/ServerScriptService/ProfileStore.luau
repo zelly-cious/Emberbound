@@ -16,13 +16,14 @@
 	          claimed nor overwritten.
 	  save    writes only while this session still holds the lock ("LockLost"
 	          otherwise, and nothing is written); release also clears the lock.
-	Store errors are retried with doubling waits. Callers serialize one player's
-	sessions within a server, so a lock from this server's job is this server's own.
+	Store errors are retried with doubling waits. Every session keeps its own lock,
+	including when a later session joins the same server.
 ]]
 
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local ProfileSchema = require(ServerScriptService:WaitForChild("ProfileSchema"))
+local ProfileTransactions = require(ServerScriptService:WaitForChild("ProfileTransactions"))
 
 type Profile = ProfileSchema.Profile
 
@@ -64,9 +65,6 @@ local function canClaim(options: Options, lock: unknown, session: string): boole
 	local fields = lock :: { [string]: unknown }
 	if fields.session == session then
 		return true
-	end
-	if options.job ~= "" and fields.job == options.job then
-		return true -- this server's own earlier session, which did not release
 	end
 	local at = fields.at
 	if typeof(at) ~= "number" then
@@ -132,7 +130,13 @@ function ProfileStore.load(options: Options, userId: number, session: string, is
 				status, detail = "Invalid", reason
 				return nil
 			end
-			status, profile = "Loaded", decoded
+			local recovered, recoveryProblem = ProfileTransactions.recover(decoded)
+			if recovered == nil then
+				status, detail = "Invalid", recoveryProblem
+				return nil
+			end
+			status, profile = "Loaded", recovered
+			record.profile = ProfileSchema.encode(recovered)
 			record.lock = lockFor(options, session)
 			return record
 		end)
@@ -156,6 +160,12 @@ end
 ]]
 function ProfileStore.save(options: Options, userId: number, session: string, profile: Profile?, release: boolean): (SaveStatus, string?)
 	local encoded = if profile then ProfileSchema.encode(profile) else nil
+	if encoded ~= nil then
+		local validated, reason = ProfileSchema.decode(encoded)
+		if validated == nil then
+			return "Error", reason
+		end
+	end
 	local status: SaveStatus = "Error"
 	local ok, problem = update(options, ProfileStore.keyFor(userId), userId, function(old: unknown): unknown?
 		if typeof(old) ~= "table" then

@@ -22,6 +22,8 @@ export type CurrencyDefinition = {
 	id: string,
 	displayName: string,
 	startingBalance: number,
+	kind: "BigNum" | "Whole",
+	maxBalance: number?,
 }
 
 export type UpgradeDefinition = {
@@ -40,14 +42,25 @@ export type UpgradeDefinition = {
 local ProgressionConfig = {}
 
 ProgressionConfig.GoldCurrencyId = "Gold"
+ProgressionConfig.GemCurrencyId = "Gems"
+ProgressionConfig.CrownCurrencyId = "Crowns"
 
 local gold: CurrencyDefinition = {
 	id = ProgressionConfig.GoldCurrencyId,
 	displayName = "Gold",
 	startingBalance = GameConfig.Combat.StartingGold,
+	kind = "BigNum",
 }
 
 ProgressionConfig.Currencies = table.freeze({ table.freeze(gold) }) :: { CurrencyDefinition }
+
+-- Saved wallet definitions. The active currency list above controls gameplay and sync.
+-- Gems and Crowns become active in M6 and M8 respectively.
+ProgressionConfig.CurrencyDefinitions = table.freeze({
+	gold,
+	table.freeze({ id = "Gems", displayName = "Gems", startingBalance = 0, kind = "Whole", maxBalance = 9007199254740991 }),
+	table.freeze({ id = "Crowns", displayName = "Crowns", startingBalance = 0, kind = "Whole", maxBalance = 9007199254740991 }),
+}) :: { CurrencyDefinition }
 
 local tapDamage: UpgradeDefinition = {
 	id = "TapDamage",
@@ -72,12 +85,27 @@ local function checkLevel(definition: UpgradeDefinition, level: number)
 end
 
 function ProgressionConfig.GetCurrency(currencyId: string): CurrencyDefinition?
-	for _, currency in ProgressionConfig.Currencies do
+	for _, currency in ProgressionConfig.CurrencyDefinitions do
 		if currency.id == currencyId then
 			return currency
 		end
 	end
 	return nil
+end
+
+-- Balances and amounts share the same kind/range checks; callers decide whether zero is allowed.
+function ProgressionConfig.IsCurrencyValue(currencyId: string, value: BigNum): boolean
+	if not BigNum.isValid(value) then
+		return false
+	end
+	local definition = ProgressionConfig.GetCurrency(currencyId)
+	if definition == nil then
+		return true -- Wallet also supports caller-defined currencies, as it did in M2.
+	end
+	if definition.kind == "Whole" and not BigNum.eq(BigNum.floor(value), value) then
+		return false
+	end
+	return definition.maxBalance == nil or BigNum.lte(value, BigNum.fromNumber(definition.maxBalance))
 end
 
 function ProgressionConfig.GetUpgrade(upgradeId: string): UpgradeDefinition?

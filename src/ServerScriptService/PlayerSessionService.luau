@@ -41,7 +41,6 @@ type Session = {
 	failed: boolean, -- the profile could not be loaded; the player has been asked to rejoin
 	syncRequested: boolean,
 	lastSyncAt: number,
-	activeSeconds: number, -- carried from the loaded profile (decision 7; the counter is not built yet)
 }
 
 local REMOTE_WAIT_TIMEOUT = 10
@@ -77,7 +76,10 @@ local function buildProfile(player: Player): Profile?
 	if session == nil or not session.ready then
 		return nil
 	end
-	local profile = ProfileSchema.new()
+	local profile = PlayerDataService.CopyMetadata(player)
+	if profile == nil then
+		return nil
+	end
 	for _, currency in ProgressionConfig.Currencies do
 		local balance = CurrencyService.GetBalance(player, currency.id)
 		if balance == nil then
@@ -90,6 +92,12 @@ local function buildProfile(player: Player): Profile?
 		return nil
 	end
 	profile.stage = stage
+	local runHighest, lifetimeHighest = CombatService.GetHighestStages(player)
+	if runHighest == nil or lifetimeHighest == nil then
+		return nil
+	end
+	profile.runHighestStage = runHighest
+	profile.lifetimeHighestStage = lifetimeHighest
 	for _, definition in ProgressionConfig.Upgrades do
 		local level = UpgradeService.GetLevel(player, definition.id)
 		if level == nil then
@@ -97,7 +105,6 @@ local function buildProfile(player: Player): Profile?
 		end
 		profile.upgrades[definition.id] = level
 	end
-	profile.activeSeconds = session.activeSeconds
 	return profile
 end
 
@@ -125,7 +132,6 @@ local function addPlayer(player: Player)
 		failed = false,
 		syncRequested = false,
 		lastSyncAt = -math.huge,
-		activeSeconds = 0,
 	}
 	sessions[player] = session
 
@@ -145,11 +151,10 @@ local function addPlayer(player: Player)
 		return
 	end
 	local loaded = profile :: Profile
-	session.activeSeconds = loaded.activeSeconds
 
 	local success, problem = pcall(function()
 		CurrencyService.AddPlayer(player, loaded.currencies)
-		CombatService.AddPlayer(player, loaded.stage)
+		CombatService.AddPlayer(player, loaded.stage, loaded.runHighestStage, loaded.lifetimeHighestStage)
 		StatService.AddPlayer(player) -- needs CombatService; UpgradeService then reports the base tap damage
 		UpgradeService.AddPlayer(player, loaded.upgrades)
 	end)

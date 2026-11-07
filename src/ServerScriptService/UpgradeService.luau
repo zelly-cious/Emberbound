@@ -33,6 +33,7 @@ local CombatService = require(ServerScriptService:WaitForChild("CombatService"))
 local CurrencyService = require(ServerScriptService:WaitForChild("CurrencyService"))
 local RateLimiter = require(ServerScriptService:WaitForChild("RateLimiter"))
 local StatService = require(ServerScriptService:WaitForChild("StatService"))
+local PlayerDataService = require(ServerScriptService:WaitForChild("PlayerDataService"))
 
 type UpgradeDefinition = ProgressionConfig.UpgradeDefinition
 type UpgradeView = GameConfig.UpgradeView
@@ -138,7 +139,7 @@ end
 
 local function handlePurchaseRequest(player: Player, upgradeId: unknown, requestId: unknown)
 	local state = states[player]
-	if not state or not state.synced then
+	if not state or not state.synced or not PlayerDataService.CanMutate(player) then
 		return -- not ready yet; the client's panel stays disabled until the first sync
 	end
 	if not requestLimiter:allow(player) then
@@ -173,7 +174,7 @@ local function handlePurchaseRequest(player: Player, upgradeId: unknown, request
 		return
 	end
 	local cost = ProgressionConfig.GetUpgradeCost(definition, level)
-	if not CurrencyService.TrySpend(player, definition.currencyId, cost, `Upgrade:{definition.id}`) then
+	if not CurrencyService.TrySpend(player, definition.currencyId, cost, `Upgrade:{definition.id}`, false) then
 		reply(player, state, acceptedRequestId, definition.id, "InsufficientFunds")
 		return
 	end
@@ -183,11 +184,16 @@ local function handlePurchaseRequest(player: Player, upgradeId: unknown, request
 		-- Not reachable while CombatService accepts what StatService prepared (nothing yields in between).
 		-- Undo the purchase instead of charging for an upgrade that did not apply.
 		state.levels[definition.id] = level
-		CurrencyService.Grant(player, definition.currencyId, cost, `Refund:Upgrade:{definition.id}`)
+		CurrencyService.Grant(player, definition.currencyId, cost, `Refund:Upgrade:{definition.id}`, false)
 		warn(`[UpgradeService] {definition.id} level {newLevel} could not be applied for {player.Name}; the purchase was refunded`)
 		reply(player, state, acceptedRequestId, definition.id, "EffectFailed")
 		return
 	end
+	PlayerDataService.RecordTransaction(player, {
+		kind = "Upgrade", currencyId = definition.currencyId, amount = BigNum.toString(cost),
+		upgradeId = definition.id, fromLevel = level, toLevel = newLevel,
+	})
+	PlayerDataService.RecordActivity(player)
 	reply(player, state, acceptedRequestId, definition.id, "Ok")
 end
 

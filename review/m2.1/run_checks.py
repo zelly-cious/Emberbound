@@ -67,7 +67,8 @@ def bundle(source: str, entry_text: str, replace: dict[str, str] | None = None) 
 def run(chunk: str, mode: str, workdir: Path, library: Path) -> tuple[int, str]:
     path = workdir / "chunk.lua"
     path.write_text(chunk)
-    proc = subprocess.run(["lua5.1", str(path)], capture_output=True, text=True, env=run_matrix.mode_env(mode, library))
+    proc = subprocess.run(["lua5.1", str(path)], capture_output=True, text=True,
+                          env=run_matrix.mode_env(mode, library), timeout=30)
     return proc.returncode, proc.stdout + proc.stderr
 
 

@@ -15,6 +15,7 @@ local BigNum = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Bi
 local ProgressionConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ProgressionConfig"))
 local ProfileSchema = require(ServerScriptService:WaitForChild("ProfileSchema"))
 local ProfileStore = require(ServerScriptService:WaitForChild("ProfileStore"))
+local ProfileTransactions = require(ServerScriptService:WaitForChild("ProfileTransactions"))
 local TestKit = require(script.Parent:WaitForChild("TestKit"))
 
 local expectEqual = TestKit.expectEqual
@@ -196,14 +197,14 @@ local tests: { TestKit.TestCase } = {
 		end,
 	},
 	{
-		name = "this server's own unreleased session is reclaimed at once",
+		name = "a new session on the same server waits for the previous lock",
 		run = function()
 			local world = newWorld()
 			ProfileStore.load(server(world, "A"), USER, "s1", always)
 			local result = ProfileStore.load(server(world, "A"), USER, "s2", always)
-			expectEqual(result.status, "Loaded")
-			expectEqual(world.records[KEY].lock.session, "s2")
-			expectEqual(#world.waits, 0)
+			expectEqual(result.status, "Locked")
+			expectEqual(world.records[KEY].lock.session, "s1")
+			expectEqual(#world.waits, 2)
 			-- Studio's empty JobId never counts as the same server.
 			local studio = newWorld()
 			ProfileStore.load(server(studio, ""), USER, "s1", always)
@@ -325,6 +326,42 @@ local tests: { TestKit.TestCase } = {
 			expectEqual(world.records[ProfileStore.keyFor(2)].profile.currencies[GOLD], "0")
 			expectEqual(world.records[ProfileStore.keyFor(2)].lock.session, "s2")
 			expectEqual(ProfileStore.save(a, 2, "s1", withGold(99), false), "LockLost", "another player's session cannot write")
+		end,
+	},
+	{
+		name = "claiming a session recovers and persists a saved pending grant once",
+		run = function()
+			local world = newWorld()
+			local a = server(world, "A")
+			ProfileStore.load(a, USER, "s1", always)
+			local pending = ProfileTransactions.prepare(ProfileSchema.new(), {
+				id = 1, kind = "Grant", currencyId = GOLD, amount = "25",
+			})
+			expectTrue(pending ~= nil, "preparation succeeded")
+			expectEqual(ProfileStore.save(a, USER, "s1", pending, true), "Saved")
+			expectEqual(storedGold(world), "0", "prepare is written before the reward")
+			local b = server(world, "B")
+			local loaded = ProfileStore.load(b, USER, "s2", always)
+			expectEqual(loaded.status, "Loaded")
+			expectEqual(storedGold(world), "25")
+			expectNil(world.records[KEY].profile.pendingTransaction)
+			expectEqual(world.records[KEY].profile.transactionId, 1)
+			ProfileStore.save(b, USER, "s2", loaded.profile, true)
+			ProfileStore.load(server(world, "C"), USER, "s3", always)
+			expectEqual(storedGold(world), "25", "another load grants nothing extra")
+		end,
+	},
+	{
+		name = "an invalid current snapshot is refused before replacing a stored profile",
+		run = function()
+			local world = newWorld()
+			local options = server(world, "A")
+			ProfileStore.load(options, USER, "s1", always)
+			local bad = withGold(50)
+			bad.stage = 5 -- its run record still says no cleared stage
+			expectEqual(ProfileStore.save(options, USER, "s1", bad, false), "Error")
+			expectEqual(storedGold(world), "0")
+			expectEqual(world.records[KEY].lock.session, "s1")
 		end,
 	},
 }

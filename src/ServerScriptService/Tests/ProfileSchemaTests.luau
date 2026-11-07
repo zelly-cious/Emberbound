@@ -3,7 +3,7 @@
 	ProfileSchemaTests
 	Location: ServerScriptService > Tests > ProfileSchemaTests (ModuleScript)
 
-	The version 1 profile: defaults, round trips, and rejection of every malformed
+	V1 migration and V2 profiles: defaults, round trips, and rejection of malformed
 	or out-of-range stored value (a rejected profile is never replaced by defaults).
 ]]
 
@@ -66,6 +66,8 @@ local tests: { TestKit.TestCase } = {
 				local profile = ProfileSchema.new()
 				profile.currencies[GOLD] = BigNum.parse(goldText) :: BigNum.BigNum
 				profile.stage = 4321
+				profile.runHighestStage = 4320
+				profile.lifetimeHighestStage = 4320
 				profile.upgrades[TAP.id] = TAP.maxLevel
 				profile.activeSeconds = 1800
 				local encoded = ProfileSchema.encode(profile)
@@ -93,13 +95,13 @@ local tests: { TestKit.TestCase } = {
 		name = "missing optional entries take starting values; unknown entries are ignored",
 		run = function()
 			local raw = stored()
-			raw.currencies = { Gems = "50" }
+			raw.currencies = { FutureCurrency = "50" }
 			raw.upgrades = { FutureUpgrade = 3 }
 			raw.activeSeconds = nil
 			raw.unknownField = "kept out"
 			local profile = decodeOk(raw)
 			expectEqual(BigNum.toString(profile.currencies[GOLD]), "0")
-			expectNil(profile.currencies.Gems, "an unknown currency is not loaded")
+			expectNil(profile.currencies.FutureCurrency, "an unknown currency is not loaded")
 			expectEqual(profile.upgrades[TAP.id], TAP.startingLevel)
 			expectNil(profile.upgrades.FutureUpgrade, "an unknown upgrade is not loaded")
 			expectEqual(profile.activeSeconds, 0)
@@ -188,6 +190,86 @@ local tests: { TestKit.TestCase } = {
 			expectEqual(BigNum.toString(second.currencies[GOLD]), "1234")
 			expectEqual(raw.currencies[GOLD], "1234")
 			expectEqual(raw.upgrades[TAP.id], 5)
+		end,
+	},
+	{
+		name = "v1 migration seeds cleared-stage records and canonical prestige defaults",
+		run = function()
+			local profile = decodeOk(stored())
+			expectEqual(profile.runHighestStage, 6)
+			expectEqual(profile.lifetimeHighestStage, 6)
+			expectEqual(profile.prestige.count, 0)
+			expectEqual(profile.prestige.runId, 1)
+			expectEqual(ProfileSchema.encode(profile).prestige.multiplier, "1")
+			expectEqual(ProfileSchema.encode(profile).v, 2)
+		end,
+	},
+	{
+		name = "v2 preserves lifetime progress, claims and huge prestige multipliers",
+		run = function()
+			local profile = ProfileSchema.new()
+			profile.lifetimeHighestStage = 500
+			profile.prestige.multiplier = BigNum.parse("1e400") :: BigNum.BigNum
+			profile.claimedMilestones["stage:100"] = true
+			local copy = decodeOk(ProfileSchema.encode(profile))
+			expectEqual(copy.lifetimeHighestStage, 500)
+			expectEqual(copy.runHighestStage, 0)
+			expectEqual(ProfileSchema.encode(copy).prestige.multiplier, "1e400")
+			expectTrue(copy.claimedMilestones["stage:100"], "claim survives")
+		end,
+	},
+	{
+		name = "whole-number currencies reject fractions and over-cap balances",
+		run = function()
+			for _, currencyId in { "Gems", "Crowns" } do
+				for _, amount in { "0.5", "9007199254740992", "-1" } do
+					local raw = stored()
+					raw.currencies[currencyId] = amount
+					expectRejected(raw, currencyId .. " " .. amount)
+				end
+				local raw = stored()
+				raw.currencies[currencyId] = "9007199254740991"
+				expectEqual(BigNum.toString(decodeOk(raw).currencies[currencyId]), "9007199254740991")
+			end
+		end,
+	},
+	{
+		name = "current-version missing or inconsistent stage and prestige fields are rejected",
+		run = function()
+			local valid = ProfileSchema.encode(ProfileSchema.new()) :: any
+			for _, key in { "prestige", "runHighestStage", "lifetimeHighestStage", "transactions", "claimedMilestones", "activeSeconds" } do
+				local raw = table.clone(valid)
+				raw[key] = nil
+				expectRejected(raw, "missing " .. key)
+			end
+			local missingGold = ProfileSchema.encode(ProfileSchema.new()) :: any
+			missingGold.currencies[GOLD] = nil
+			expectRejected(missingGold, "missing Gold")
+			local missingLevel = ProfileSchema.encode(ProfileSchema.new()) :: any
+			missingLevel.upgrades[TAP.id] = nil
+			expectRejected(missingLevel, "missing upgrade level")
+			valid.runHighestStage = 5
+			expectRejected(valid, "run best exceeds lifetime best")
+			valid.runHighestStage = 0
+			valid.prestige.multiplier = "0.5"
+			expectRejected(valid, "multiplier below one")
+		end,
+	},
+	{
+		name = "malformed pending operations and disordered history are rejected",
+		run = function()
+			local raw = ProfileSchema.encode(ProfileSchema.new()) :: any
+			raw.pendingTransaction = { id = 2, kind = "Grant", currencyId = "Gold", amount = "1" }
+			expectRejected(raw, "skipped id")
+			raw.pendingTransaction = { id = 1, kind = "Prestige", runId = 1, runHighestStage = 0, calculatedGain = "nan", gainCurveVersion = "A" }
+			expectRejected(raw, "invalid saved gain")
+			raw.pendingTransaction = nil
+			raw.transactionId = 2
+			raw.transactions = {
+				{ id = 2, kind = "Grant", currencyId = "Gold", amount = "1" },
+				{ id = 1, kind = "Grant", currencyId = "Gold", amount = "1" },
+			}
+			expectRejected(raw, "disordered receipts")
 		end,
 	},
 }

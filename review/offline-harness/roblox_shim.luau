@@ -176,10 +176,19 @@ local function deepCopy(value)
 		return value
 	end
 	local copy = {}
+	local numeric, strings = 0, 0
 	for key, item in value do
-		assert(type(key) == "string", "roblox_shim: stored tables may only have string keys")
+		if type(key) == "number" then
+			assert(key % 1 == 0 and key >= 1 and key <= #value, "roblox_shim: stored arrays must be dense")
+			numeric += 1
+		else
+			assert(type(key) == "string", "roblox_shim: invalid stored table key")
+			strings += 1
+		end
 		copy[key] = deepCopy(item)
 	end
+	assert(numeric == 0 or strings == 0, "roblox_shim: mixed array/dictionary tables are not stored")
+	assert(numeric == 0 or numeric == #value, "roblox_shim: stored arrays must be dense")
 	return copy
 end
 
@@ -372,6 +381,9 @@ local fakeTask = {
 }
 
 local baseEnv = getfenv(1)
+function Shim.setGlobal(name, value)
+	baseEnv[name] = value
+end
 local moduleCache = {}
 local loading = {}
 

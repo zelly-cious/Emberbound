@@ -22,6 +22,7 @@ local BigNum = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Bi
 local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
 local ProgressionConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ProgressionConfig"))
 local Wallet = require(ServerScriptService:WaitForChild("Wallet"))
+local PlayerDataService = require(ServerScriptService:WaitForChild("PlayerDataService"))
 
 type BigNum = BigNum.BigNum
 type Wallet = Wallet.Wallet
@@ -109,29 +110,43 @@ function CurrencyService.GetBalance(player: Player, currencyId: string): BigNum?
 end
 
 -- Adds a positive amount. `reason` describes the source (for logs and future analytics).
-function CurrencyService.Grant(player: Player, currencyId: string, amount: BigNum, reason: string): boolean
+function CurrencyService.Grant(player: Player, currencyId: string, amount: BigNum, reason: string, recordTransaction: boolean?): boolean
 	local state = states[player]
-	if not state then
+	if not state or not PlayerDataService.CanMutate(player) then
 		return false
 	end
 	if not Wallet.grant(state.wallet, currencyId, amount) then
 		warn(`[CurrencyService] Rejected {currencyId} grant for {player.Name} ({reason})`)
 		return false
 	end
+	if recordTransaction ~= false then
+		PlayerDataService.RecordTransaction(player, {
+			kind = "Grant", currencyId = currencyId, amount = BigNum.toString(amount),
+			reason = if reason == "" then nil else string.sub(reason, 1, 128),
+		})
+	end
+	PlayerDataService.MarkDirty(player)
 	logEconomy(`+{BigNum.toString(amount)} {currencyId} for {player.Name} ({reason})`)
 	sendBalances(player, state)
 	return true
 end
 
 -- Spends the whole amount only if the player can afford it. Never yields, never goes negative.
-function CurrencyService.TrySpend(player: Player, currencyId: string, amount: BigNum, reason: string): boolean
+function CurrencyService.TrySpend(player: Player, currencyId: string, amount: BigNum, reason: string, recordTransaction: boolean?): boolean
 	local state = states[player]
-	if not state then
+	if not state or not PlayerDataService.CanMutate(player) then
 		return false
 	end
 	if not Wallet.trySpend(state.wallet, currencyId, amount) then
 		return false
 	end
+	if recordTransaction ~= false then
+		PlayerDataService.RecordTransaction(player, {
+			kind = "Spend", currencyId = currencyId, amount = BigNum.toString(amount),
+			reason = if reason == "" then nil else string.sub(reason, 1, 128),
+		})
+	end
+	PlayerDataService.MarkDirty(player)
 	logEconomy(`-{BigNum.toString(amount)} {currencyId} for {player.Name} ({reason})`)
 	sendBalances(player, state)
 	return true

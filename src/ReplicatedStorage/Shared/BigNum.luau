@@ -501,7 +501,7 @@ function BigNum.parse(text: unknown): BigNum?
 	-- R2-1: the written value is at least 10^(leading + exponent), where leading is the decimal
 	-- exponent of its first nonzero digit. Rejecting before any rounding means the text
 	-- "1" + 23 zeros + "e9007199254740969" (= 10^(2^53)) cannot round down into range.
-	local integerDigits = string.match(mantissaText, "^0*(%d*)")
+	local integerDigits = string.match(mantissaText :: string, "^0*(%d*)")
 	local leading = #(integerDigits :: string) - 1
 	if leading > 0 and exponent > MAX_EXPONENT - leading then
 		return nil
