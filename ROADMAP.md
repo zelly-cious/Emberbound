@@ -7,7 +7,7 @@ Planning draft prepared 7 Nov 2026 from the producer's milestone outline and [re
 - M1 passed QA and review.
 - M2 Round 4 merged through [PR #1](https://github.com/zelly-cious/Emberbound/pull/1) at `2279623`. The producer's outline describes an earlier status. Round 4 includes the reviewed BigNum adoption and Studio QA record.
 - M2.1 is [draft PR #3](https://github.com/zelly-cious/Emberbound/pull/3), head `39a5357`. Gameplay source matches reviewed `9a3ad1e`, with 82 offline tests and producer-attested Studio passes. Release-place helper cleanup and release packaging remain to be completed.
-- M3 is in progress on this branch. The parser fix and first persistence implementation are present at `a94f020`. Existing offline checks pass 16/16 with 106 tests. An independent delayed-save/rejoin regression exposed lost progress when a new same-server session takes a lock while the previous release is pending. Fix that path as part of M3.
+- M3 foundations are implemented on this branch at `2378554`: schema v2/migration, typed wallets, journal recovery, active time, prestige metadata and the delayed-save/rejoin fix. Offline checks pass 16/16 with 123 tests and 56 persistence probes; native Luau execution also passes. Review and the focused private Studio checkpoint remain pending. The exact-source test package is in [tools/m3](tools/m3/README.md).
 - [M3_PLAN.md](M3_PLAN.md) tracks the implementation details. [Deferred launch QA](review/LAUNCH_QA_DEFERRED.md) tracks manual checks.
 
 ## Milestones through the proposed first launch
@@ -98,7 +98,7 @@ Crown grants from Developer Products use ProcessReceipt and durable handling of 
 
 ## Delivery and QA workflow
 
-1. Finish M2.1 integration, then complete M3 recovery, wallets, active time and the prestige contract. Fix the save/rejoin race.
+1. Review M2.1 and the implemented M3 foundations, including the save/rejoin fix. Merge in dependency order only after producer approval.
 2. Run the focused M3 persistence checkpoint below before M4. Keep automatic checks and fix confirmed defects during development.
 3. Implement M4, M4.1, M5, M6.1, M6.2, M7 and M8 in dependency order. Carry earlier QA attestations as evidence for their recorded source revisions and collect later manual checks for launch.
 4. Run one integrated manual QA pass after M8 on the final launch build. Include prestige, hero DPS, equipment, summoning, trading, receipts, mobile layout and final source parity. Repeat the M3 persistence scenarios when later changes affect their behavior.

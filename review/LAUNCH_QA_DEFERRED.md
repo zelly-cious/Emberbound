@@ -14,14 +14,14 @@ The producer's roadmap review (7 Nov 2026) adds one focused private Studio persi
 
 | ID | Check | Status |
 |---|---|---|
-| M3-P1 | One private Studio persistence session on the real DataStore path. Verify saved Gold/stage/upgrade levels and derived damage after restart/rejoin, one autosave/release, and the delayed-save/rejoin and controlled failure paths through reviewed test hooks. Stored progress must remain protected. Record the exact source revision and a concise result. | Pending implementation fixes and execution |
+| M3-P1 | One private Studio persistence session on the real DataStore path. Verify saved Gold/stage/upgrade levels and derived damage after restart/rejoin, one autosave/release, and the delayed-save/rejoin and controlled failure paths through reviewed test hooks. Stored progress must remain protected. Record the exact source revision and a concise result. | Implementation at `2378554` passes offline; real-Studio fault adapter preparation/review and checkpoint execution pending |
 
 ## Final launch checks
 
 | ID | Check | Added by |
 |---|---|---|
-| D-1 | TestRunner in Studio reports ALL PASSED with the final suite count (106 tests in 10 suites at `feature/m3-planning`), including the R2-1 parser and the profile tests | R2-1 fix, persistence slice |
-| D-2 | Script Analysis: no errors in the new or changed scripts (`ProfileSchema`, `ProfileStore`, `PlayerDataService`, `PlayerSessionService`, `CurrencyService`, `CombatService`, `CombatRules`, `UpgradeService`, `BigNum`, the new Tests). The two known `CombatClient` warnings may remain. | persistence slice |
+| D-1 | TestRunner in Studio reports ALL PASSED with the final suite count (123 tests in 11 suites at `2378554`), including the R2-1 parser and the profile tests | R2-1 fix, persistence slice |
+| D-2 | Script Analysis: no errors in the new or changed scripts (`ProfileSchema`, `ProfileTransactions`, `ProfileStore`, `PlayerDataService`, `PlayerSessionService`, `CurrencyService`, `CombatService`, `CombatRules`, `UpgradeService`, `BigNum`, the new Tests). The two known `CombatClient` warnings may remain. | persistence slice |
 | D-3 | Unpublished place: Output shows "Studio without DataStore access: saves are kept in memory"; the game plays exactly as before | persistence slice |
 | D-4 | M3-P1 first covers private Studio save/reload on the real DataStore path. On the final build, repeat if persistence changed: restored Gold, level, stage and derived damage match, with a fresh enemy at full HP. | M3-P1, then integration regression as needed |
 | D-5 | M3-P1 first covers autosave/release. Repeat on the final build if those paths changed, checking the persisted state after the write. | M3-P1, then integration regression as needed |

@@ -274,7 +274,8 @@ def load_sources(repo: Path) -> list[dict]:
     return files
 
 
-def render(template: str, files: list[dict]) -> str:
+def render(template: str, files: list[dict], *, frozen_commit: str = FROZEN_COMMIT,
+           installer_version: str = INSTALLER_VERSION) -> str:
     layout = "\n".join(f'\t{{ path = "{f["path"]}", className = "{f["className"]}" }},' for f in files)
     blocks = []
     for index, f in enumerate(files, 1):
@@ -292,8 +293,8 @@ def render(template: str, files: list[dict]) -> str:
             f"}}"
         )
     values = {
-        "INSTALLER_VERSION": INSTALLER_VERSION,
-        "FROZEN_COMMIT": FROZEN_COMMIT,
+        "INSTALLER_VERSION": installer_version,
+        "FROZEN_COMMIT": frozen_commit,
         "FILE_COUNT": str(len(files)),
         "LAYOUT": layout,
         "FILES": "\n".join(blocks),

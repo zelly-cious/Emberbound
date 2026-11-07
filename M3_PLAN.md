@@ -1,16 +1,16 @@
-# Emberbound Milestone 3 kickoff
+# Emberbound Milestone 3 implementation
 
-Implementation baseline is the released Milestone 2 Round 4 at `227962341facb26ddc6eb074ca7e49018dfc7acb` (PR #1), with its [Studio QA addendum](review/M2_STUDIO_QA_ROUND4_RELEASE_RESULTS.md). This branch now contains M2.1 integration and the first M3 implementation. The producer's supplied milestone outline is captured in the proposed [roadmap](ROADMAP.md), including feature ownership and launch sequencing.
+Implementation baseline is the released Milestone 2 Round 4 at `227962341facb26ddc6eb074ca7e49018dfc7acb` (PR #1), with its [Studio QA addendum](review/M2_STUDIO_QA_ROUND4_RELEASE_RESULTS.md). This branch contains M2.1 integration and the M3 foundations at `23785544f846817c5d722f69d5e81b11348df46f`. Review and the focused private Studio checkpoint remain pending. See [implementation results](review/m3/M3_IMPLEMENTATION_RESULTS.md) and the [M3 installer](tools/m3/README.md). The producer's milestone outline is captured in [ROADMAP.md](ROADMAP.md).
 
 ## Recorded requirements and dependencies
 
 - The [M2 requirements](M2_REQUIREMENTS.md#known-gaps-against-the-roadmaps-m2-list-reported-not-fixed) assign M3 a versioned player profile with currencies, levels and a transaction log. They also assign currency kinds and rules, and the transaction sequence of validation, a single non-yielding mutation, marking the profile dirty and replying.
-- [Decision 7](DECISIONS.md) assigns server-validated active gameplay tracking to M3. Include active seconds in the profile and update it from server-accepted gameplay activity. The later trading unlock consumes this record for its 30-minute active-play requirement. Confirm how accepted actions earn time and how idle gaps are capped before implementing the counter.
+- [Decision 7](DECISIONS.md) assigns server-validated active gameplay tracking to M3. Include active seconds in the profile and update it from server-accepted gameplay activity. The later trading unlock consumes this record for its 30-minute active-play requirement. Accepted taps and successful purchases now extend a ten-second idle window; see the adopted parameters below.
 - [Decision 9](DECISIONS.md) requires fixing and testing BigNum parsing before introducing an untrusted numerical input path, including persisted values if M3 reads them through this parser. Cover the out-of-range decimal in [M2 requirements](M2_REQUIREMENTS.md), malformed values, valid boundaries and supported round trips. Keep Decision 10's ratio constraint in force if any proposed M3 work broadens its use.
 - Decision 1 assigns M2.1 StatService before M3's loaded stats and M4 heroes. The [roadmap revision](ROADMAP.md) adds basic prestige in M4.1 and requires its schema/reset contract during M3, before M4 economy tuning.
 - Use the approved Master Spec to confirm the full M3 scope, the first persistence slice, the transaction log and currency rules, save and load behavior, session ownership and migration policy. The repository records the requirements above and references the Master Spec.
 
-## Proposed first implementation slice
+## Implementation sequence
 
 1. Reproduce the BigNum parser boundary case against the accepted baseline and add a regression test with the parser fix.
 2. Define a versioned profile and validation contract for the approved fields. Test new profiles, older versions, invalid or out-of-range stored values and round trips before connecting persistence.
@@ -19,19 +19,19 @@ Implementation baseline is the released Milestone 2 Round 4 at `227962341facb26d
 
 M3 owns saving, versioned profiles, session handling, currency wallets, interrupted-transaction recovery and migrations. Decision 7 adds the active-play counter. Define the prestige record, lifetime/run highest-cleared stage records and recoverable reset operation during M3. The [roadmap contract](ROADMAP.md#prestige-contract-before-m4-tuning) resets hero levels while retaining ownership, rarity and duplicate progress, and selects a permanent damage multiplier as the reward. Follow the focused persistence checkpoint before M4 in the [roadmap](ROADMAP.md).
 
-## Kickoff status (7 Nov 2026)
+## Current implementation status
 
 | Item | Status |
 |---|---|
 | M2 release baseline | **Done:** `main` at `2279623`, the Round 4 package. |
 | M2.1 StatService (decision 1) | **Draft PR #3** at `39a5357`, with source identical to reviewed `9a3ad1e`.<br>• Offline: 14/14 checks, 82 tests, 75 historical probes and 43 integration probes.<br>• Studio checks 1-4 are recorded as producer-attested passes in `review/m2.1/M2_1_STUDIO_QA_RESULTS.md`.<br>• Helper cleanup is scheduled for final release parity. Packaging and merge review remain. |
 | BigNum parser fix (decision 9, R2-1) | **Done on this branch.** `BigNum.parse` checks the range against the decimal digits as written, before rounding. So `"1"` + 23 zeros + `"e9007199254740969"` (= 10^(2^53)) and every other decimal at or above 10^(2^53) read as nil. A value within one rounding step of the top can also read as nil; that is the safe direction. Offline only:<br>• 3 new BigNum tests, 70/70 in all four floating-point modes;<br>• both R2-1 tests fail against the `main` parser (negative control);<br>• 75/75 probes;<br>• 4,007 canonical and in-range strings parse identically before and after the fix.<br>Studio coverage joins the focused M3 persistence checkpoint and final launch regression as relevant. |
-| First persistence slice (plan steps 2 and 4) | **Implemented on this branch and under review, built on M2.1.**<br>• New modules: `ProfileSchema` (version 1 profile), `ProfileStore` (session lock, retries) and `PlayerDataService` (DataStore, autosave, shutdown). Hooks added in the Currency, Combat, Upgrade and PlayerSession services.<br>• Saved: Gold as canonical BigNum text, stage, upgrade levels and `activeSeconds`. Tap damage is re-derived through StatService, and a fresh enemy spawns on load.<br>• Offline: `review/m3/run_checks.py` 16/16: 106/106 tests in 10 suites, 75/75 historical probes, the M2.1 check set, 36/36 persistence probes, the Studio memory path, unchanged first-time client traffic and 6 mutation controls.<br>• One focused private Studio persistence checkpoint is required after M3 and before M4. Broader live and integrated gameplay checks are collected in `review/LAUNCH_QA_DEFERRED.md`. |
+| M3 foundations | **Implemented; review and Studio checkpoint pending.** Source `2378554`.<br>• Schema v2 and v1 migration; session locks/release retry; typed wallets; journal/recovery; highest-cleared stage records; prestige data contract; active-time counter.<br>• Offline: 16/16 groups, 123/123 tests in 11 suites, 75 historical probes, 43 stat integration probes and 56 persistence probes. These also pass in native Luau 0.745.<br>• The pending-release/same-server-rejoin regression is fixed: the old 100-Gold final snapshot is preserved and restored on a later safe rejoin.<br>• Exact-source M3 installer, round 5 manifest and parity checker: `tools/m3/`.<br>• Manual Studio results remain pending; older attestations do not cover this revision. |
 | Producer roadmap | **Milestone outline received.** [ROADMAP.md](ROADMAP.md) assigns M3 saving/recovery work, M2.1 stat calculation, M4.1 basic prestige, M6.1 Gem/reward claims and M13 the wider event framework. The proposed launch cutoff and expansion sequence are recorded there. |
 
-### Proposed sequencing
+### Integration order
 
-1. **Merge M2.1 before the profile and persistence work.**
+1. **Build M3 on M2.1; merge M2.1 before merging M3.**
    - A loaded profile restores the upgrade levels, and StatService then derives tap damage from them.
    - Building persistence on M2.1 avoids writing the load path twice.
    - StatService state is derived, so it is not saved.
@@ -39,7 +39,7 @@ M3 owns saving, versioned profiles, session handling, currency wallets, interrup
    - It is a small, self-contained change, and it clears the gate for any untrusted stored value.
    - It changes `BigNum.luau` and `BigNumTests.luau`, the files adopted in Round 4. So it needs its own reviewed change and a new source manifest round with parity values and installer payload; this can be combined with the M2.1 package round.
    - It touches different files from M2.1, so the two can be reviewed in parallel.
-3. **Complete the profile contract, active-seconds counter, interrupted-transaction recovery and pending-release fix.** Include the prestige multiplier schema, hero-level reset policy, lifetime/run stage records and reset operation contract before M4 tuning.
+3. **Review the implemented foundations** in `review/m3/M3_IMPLEMENTATION_RESULTS.md`. Keep the M3 draft based on M2.1 while PR #3 remains unmerged; neither draft implies merge approval.
 4. **Run one focused persistence checkpoint before M4.** Use the real DataStore path in an isolated private Studio place. Verify save/reload, autosave/release and the controlled rejoin/failure paths. Record the source revision and result once.
 
 ### Defaults adopted for the first slice (7 Nov 2026; the producer may override)
@@ -53,13 +53,13 @@ These keep launch work moving. Each is a small, contained change if overridden.
   - An unpublished Studio place uses in-memory saves for that test session.
 - **Decision 3, profile fields and BigNum format:** canonical BigNum text, read back through the fixed `BigNum.parse` (decision 9).
 - **Decision 7, migration:** a `v` field and forward-only steps. A profile with a newer version than the server is rejected with a rejoin message.
-- **Remaining M3 work:**
-  - the durable transaction log and interrupted-operation recovery (4);
-  - currency kinds and rules for the future Gem/Crown wallets (5);
-  - the server-validated active-seconds counter (6). `activeSeconds` is currently stored but has no counter;
-  - fix the delayed-release/same-server-rejoin race identified in independent review of `a94f020`. A load must safely wait or refuse while the previous final save is still pending;
-  - implement versioned lifetime/run highest-cleared stage records, prestige count, multiplier and run identity under ROADMAP.md's reset/retention and transaction-recovery contract before M4 tuning;
-  - complete the focused M3 persistence checkpoint before starting M4.
+- **Adopted implementation parameters:**
+  - Gems/Crowns: whole values capped at 9,007,199,254,740,991, with gameplay activation in their owning milestones.
+  - Journal: 50 completed operations plus one separately retained pending operation; permanent applied high-water ID. Persist a prepared external operation before acknowledging it. Load recovery uses saved payloads inside UpdateAsync.
+  - Activity: accepted taps and successful purchases extend a ten-second window; joining, syncing, rejected actions and disconnected time earn no credit. Idle time after the window is excluded.
+  - Schema v2 preserves lifetime/run highest cleared stages, claims and canonical BigNum prestige metadata. V1 defaults/migrates forward; malformed v2 and newer saves fail safely.
+  - Final-save errors keep the snapshot and retry; a new session cannot steal a live same-job lock or pass the local pending-release guard.
+- **Remaining acceptance work:** review; prepare/review the real-Studio fault-injection adapter; perform the focused private persistence checkpoint; record/version initial prestige threshold/gain decisions before M4 tuning. Automatic checks cover local/fake-engine paths, not actual Studio timing.
 
 ### Implementation parameters to record
 
