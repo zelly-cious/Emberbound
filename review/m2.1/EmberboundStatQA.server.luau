@@ -1,7 +1,12 @@
--- TEMPORARY Studio QA helper for the M2.1 StatService checks (draft PR #3). NOT part of Emberbound.
+-- Studio QA helper for the M2.1 StatService checks (draft PR #3). NOT part of Emberbound and never in src/.
 -- In Studio: ServerScriptService > + > Script, rename it EmberboundStatQA, paste this file, then Play.
 -- A Script in the game shares the game's modules, so it reaches the live StatService (the Command Bar
--- may get its own module copies). Delete it after testing; never commit it to the place or to src/.
+-- may get its own module copies). It does nothing outside Studio, and only server code can invoke it.
+--
+-- Reuse: this file is the kept source. In a separate QA place it may stay installed with Enabled
+-- unticked between sessions (tick Enabled before Play to use it). It must NOT be in the release place:
+-- the Appendix B parity checker counts every extra script, enabled or disabled, so even a disabled copy
+-- makes parity fail (extra scripts: 1). Remove it before any parity check that is recorded.
 local RunService = game:GetService("RunService")
 if not RunService:IsStudio() then
 	return
